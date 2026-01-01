@@ -333,6 +333,7 @@ function App() {
               const errorType = event.data.error_type || 'unknown';
               const errorMessages = {
                 timeout: `${modelName}: Request timed out`,
+                stage_timeout: `${modelName}: Stage timeout (too slow)`,
                 rate_limit: `${modelName}: Rate limited`,
                 auth: `${modelName}: Authentication error`,
                 connection: `${modelName}: Connection error`,

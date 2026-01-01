@@ -102,7 +102,7 @@ from .memory import CouncilMemorySystem
 
 # Import router module based on configuration
 if ROUTER_TYPE == "ollama":
-    from .ollama import query_models_parallel, query_model, query_models_streaming
+    from .ollama import query_models_parallel, query_model, query_models_streaming, query_models_with_stage_timeout
     # Ollama doesn't have build_message_content, provide a fallback
     def build_message_content(text, images=None):
         if images:
@@ -110,7 +110,7 @@ if ROUTER_TYPE == "ollama":
             logger.warning("Ollama router may not support image attachments. Images ignored.")
         return text
 elif ROUTER_TYPE == "openrouter":
-    from .openrouter import query_models_parallel, query_model, query_models_streaming, build_message_content
+    from .openrouter import query_models_parallel, query_model, query_models_streaming, query_models_with_stage_timeout, build_message_content
 else:
     raise ValueError(f"Invalid ROUTER_TYPE: {ROUTER_TYPE}")
 
@@ -795,8 +795,15 @@ Now provide your evaluation and ranking:"""
     logger.debug("[STAGE2] Evaluating %d valid responses", len(valid_stage1))
     logger.debug("[STAGE2] Using %d models from Stage 1 successes: %s", len(council_models), council_models)
 
-    # Get rankings from models in parallel
-    responses = await query_models_parallel(council_models, messages, stage="STAGE2")
+    # Get rankings from models with stage-level timeout
+    # Uses first-N-complete pattern: proceeds after 90s if at least 3 models responded
+    responses = await query_models_with_stage_timeout(
+        council_models,
+        messages,
+        stage="STAGE2",
+        stage_timeout=90.0,  # 90 seconds max for Stage 2
+        min_results=min(3, len(council_models))  # Need at least 3 or all if less
+    )
 
     # Format results - include both successes and errors
     stage2_results = []
@@ -961,9 +968,13 @@ Provide a clear, well-reasoned final answer that represents the council's collec
     # Query the chairman model
     response = await query_model(chairman_model, messages, stage="STAGE3")
 
-    if response is None:
+    # Check if response failed (None or error response)
+    response_failed = response is None or response.get('error')
+    if response_failed:
+        error_reason = response.get('error_message', 'No response') if response else 'No response'
         # Try fallback: use models from Stage 1 as chairman (try each until one works)
-        logger.warning("Chairman model %s failed. Attempting fallback with preset models...", chairman_model)
+        logger.warning("Chairman model %s failed (%s). Attempting fallback with preset models...",
+                      chairman_model, error_reason)
 
         # Collect all Stage 1 models (excluding chairman if it was in the list)
         fallback_models = [
@@ -976,7 +987,8 @@ Provide a clear, well-reasoned final answer that represents the council's collec
                        fallback_model, len(fallback_models) - fallback_models.index(fallback_model) - 1)
             fallback_response = await query_model(fallback_model, messages, stage="STAGE3_FALLBACK")
 
-            if fallback_response is not None and fallback_response.get('content'):
+            # Check if fallback succeeded (not None and not error)
+            if fallback_response and not fallback_response.get('error') and fallback_response.get('content'):
                 logger.info("Fallback successful with model %s", fallback_model)
                 return {
                     "model": fallback_model,
@@ -985,7 +997,8 @@ Provide a clear, well-reasoned final answer that represents the council's collec
                     "original_chairman": chairman_model
                 }
             else:
-                logger.warning("Fallback model %s also failed, trying next...", fallback_model)
+                fail_reason = fallback_response.get('error_message') if fallback_response else 'No response'
+                logger.warning("Fallback model %s also failed (%s), trying next...", fallback_model, fail_reason)
 
         # All fallbacks failed, return error with context
         error_msg = (
