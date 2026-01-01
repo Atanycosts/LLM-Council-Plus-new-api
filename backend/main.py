@@ -1001,32 +1001,51 @@ async def send_message_stream(
             # Run Stage 2 with periodic heartbeats (CloudFront times out after ~30s without data)
             stage2_task = asyncio.create_task(stage2_collect_rankings(full_query, stage1_results, conv_models))
             heartbeat_interval = 15  # Send heartbeat every 15 seconds
+            heartbeat_count = 0
             while not stage2_task.done():
                 try:
                     # Wait for task to complete OR timeout for heartbeat
                     await asyncio.wait_for(asyncio.shield(stage2_task), timeout=heartbeat_interval)
                 except asyncio.TimeoutError:
                     # Task still running, send heartbeat to keep connection alive
+                    heartbeat_count += 1
+                    logger.info("[STREAMING] Sending Stage 2 heartbeat #%d", heartbeat_count)
                     yield f"data: {json.dumps({'type': 'heartbeat', 'stage': 'stage2', 'timestamp': time.time()})}\n\n"
 
-            stage2_results, label_to_model = stage2_task.result()
+            logger.info("[STREAMING] Stage 2 task finished, getting result...")
+            try:
+                stage2_results, label_to_model = stage2_task.result()
+                logger.info("[STREAMING] Stage 2 got %d results", len(stage2_results))
+            except Exception as task_error:
+                logger.error("[STREAMING] Stage 2 task.result() raised: %s: %s", type(task_error).__name__, task_error)
+                raise
+
             aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
+            logger.info("[STREAMING] Rankings calculated: %d entries", len(aggregate_rankings))
             stage2_end_time = time.time()
             stage2_duration = stage2_end_time - stage2_start_time
+
+            logger.info("[STREAMING] About to yield stage2_complete (%d results)", len(stage2_results))
             yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}, 'timestamp': stage2_end_time, 'duration': stage2_duration})}\n\n"
+            logger.info("[STREAMING] Stage 2 complete yielded successfully, proceeding to Stage 3")
 
             # Stage 3: Synthesize final answer with heartbeat
             stage3_start_time = time.time()
+            logger.info("[STREAMING] Starting Stage 3")
             yield f"data: {json.dumps({'type': 'stage3_start', 'timestamp': stage3_start_time})}\n\n"
 
             # Run Stage 3 with periodic heartbeats
             stage3_task = asyncio.create_task(stage3_synthesize_final(full_query, stage1_results, stage2_results, conv_chairman, tool_outputs=tool_outputs))
+            heartbeat_count = 0
             while not stage3_task.done():
                 try:
                     await asyncio.wait_for(asyncio.shield(stage3_task), timeout=heartbeat_interval)
                 except asyncio.TimeoutError:
+                    heartbeat_count += 1
+                    logger.info("[STREAMING] Sending Stage 3 heartbeat #%d", heartbeat_count)
                     yield f"data: {json.dumps({'type': 'heartbeat', 'stage': 'stage3', 'timestamp': time.time()})}\n\n"
 
+            logger.info("[STREAMING] Stage 3 completed after %d heartbeats", heartbeat_count)
             stage3_result = stage3_task.result()
             stage3_end_time = time.time()
             stage3_duration = stage3_end_time - stage3_start_time
@@ -1065,11 +1084,22 @@ async def send_message_stream(
         except asyncio.CancelledError:
             # Client disconnected - re-raise to allow proper generator cleanup
             # The finally block below will save partial results
-            logger.info("[STREAMING] Client disconnected during streaming for conversation %s", conversation_id)
+            logger.info("[STREAMING] Client disconnected (CancelledError) during streaming for conversation %s", conversation_id)
+            raise
+        except GeneratorExit:
+            # Generator closed by consumer (client disconnected)
+            # This is the more common case for SSE client disconnection
+            logger.info("[STREAMING] Client disconnected (GeneratorExit) during streaming for conversation %s", conversation_id)
             raise
         except Exception as e:
+            logger.error("[STREAMING] Exception during streaming for conversation %s: %s: %s", conversation_id, type(e).__name__, str(e))
             # Send error event
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        except BaseException as e:
+            # Catch ALL exceptions including SystemExit, KeyboardInterrupt, etc.
+            # to understand what's causing the generator to stop
+            logger.error("[STREAMING] BaseException during streaming for conversation %s: %s: %s", conversation_id, type(e).__name__, str(e))
+            raise
         finally:
             # CRITICAL FIX: Save partial results if client disconnected before completion
             # This ensures we don't lose work when client closes connection mid-stream

@@ -1074,7 +1074,13 @@ def calculate_aggregate_rankings(
     model_positions = defaultdict(list)
 
     for ranking in stage2_results:
-        ranking_text = ranking['ranking']
+        # Skip error results - they don't have ranking data
+        if ranking.get('error'):
+            continue
+
+        ranking_text = ranking.get('ranking')
+        if not ranking_text:
+            continue
 
         # Parse the ranking from the structured format
         parsed_ranking = parse_ranking_from_text(ranking_text)
