@@ -135,7 +135,7 @@ export default function ChatInterface({
       onSendMessage(input, attachments.length > 0 ? attachments : null, webSearchProvider);
       setInput('');
       setAttachments([]);
-      setWebSearchProvider('off'); // Reset after send
+      // Keep webSearchProvider value for next query
     }
   };
 
