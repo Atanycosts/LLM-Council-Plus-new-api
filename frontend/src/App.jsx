@@ -22,6 +22,8 @@ function App() {
   const [setupRequired, setSetupRequired] = useState(false);
   const [setupChecked, setSetupChecked] = useState(false);
   const [webSearchAvailable, setWebSearchAvailable] = useState(false);
+  const [tavilyEnabled, setTavilyEnabled] = useState(false);
+  const [exaEnabled, setExaEnabled] = useState(false);
   const [toasts, setToasts] = useState([]);
   const pendingMessageRef = useRef(null);
   const toastIdRef = useRef(0);
@@ -79,9 +81,11 @@ function App() {
   // Check setup status first - if API key is missing, show wizard
   useEffect(() => {
     api.getSetupStatus()
-      .then(({ setup_required, web_search_enabled }) => {
+      .then(({ setup_required, web_search_enabled, tavily_enabled, exa_enabled }) => {
         setSetupRequired(setup_required);
         setWebSearchAvailable(web_search_enabled || false);
+        setTavilyEnabled(tavily_enabled || false);
+        setExaEnabled(exa_enabled || false);
         setSetupChecked(true);
       })
       .catch((err) => {
@@ -254,7 +258,7 @@ function App() {
     }
   };
 
-  const handleSendMessage = async (content, attachments = null, webSearch = false) => {
+  const handleSendMessage = async (content, attachments = null, webSearchProvider = 'off') => {
     if (!currentConversationId) return;
 
     setIsLoading(true);
@@ -536,7 +540,7 @@ function App() {
           default:
             console.log('Unknown event type:', eventType);
         }
-      }, attachments, webSearch);
+      }, attachments, webSearchProvider);
     } catch (error) {
       console.error('Failed to send message:', error);
       // Remove optimistic messages on error
@@ -593,6 +597,8 @@ function App() {
         onUploadFile={api.uploadFile}
         isLoading={isLoading}
         webSearchAvailable={webSearchAvailable}
+        tavilyEnabled={tavilyEnabled}
+        exaEnabled={exaEnabled}
       />
       <ModelSelector
         isOpen={showModelSelector}

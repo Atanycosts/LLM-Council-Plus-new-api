@@ -67,11 +67,13 @@ export default function ChatInterface({
   onUploadFile,
   isLoading,
   webSearchAvailable = false,
+  tavilyEnabled = false,
+  exaEnabled = false,
 }) {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [webSearchProvider, setWebSearchProvider] = useState('off'); // 'off', 'tavily', 'exa'
   const [driveStatus, setDriveStatus] = useState({ enabled: false, configured: false });
   const [driveUploading, setDriveUploading] = useState({});
   const [driveUploaded, setDriveUploaded] = useState({});
@@ -130,10 +132,10 @@ export default function ChatInterface({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading && !isUploading) {
-      onSendMessage(input, attachments.length > 0 ? attachments : null, webSearchEnabled);
+      onSendMessage(input, attachments.length > 0 ? attachments : null, webSearchProvider);
       setInput('');
       setAttachments([]);
-      setWebSearchEnabled(false); // Reset after send
+      setWebSearchProvider('off'); // Reset after send
     }
   };
 
@@ -440,15 +442,19 @@ export default function ChatInterface({
               rows={1}
             />
             {webSearchAvailable && (
-              <label className="web-search-toggle" title="When enabled, queries will include web search for latest news">
-                <input
-                  type="checkbox"
-                  checked={webSearchEnabled}
-                  onChange={(e) => setWebSearchEnabled(e.target.checked)}
+              <div className="web-search-dropdown" title="Select web search provider">
+                <span className="dropdown-icon">🔍</span>
+                <select
+                  value={webSearchProvider}
+                  onChange={(e) => setWebSearchProvider(e.target.value)}
                   disabled={isLoading || isUploading}
-                />
-                <span className="toggle-label">🔍 Web</span>
-              </label>
+                  className="search-provider-select"
+                >
+                  <option value="off">Off</option>
+                  {tavilyEnabled && <option value="tavily">Tavily</option>}
+                  {exaEnabled && <option value="exa">Exa AI</option>}
+                </select>
+              </div>
             )}
             <button
               type="submit"

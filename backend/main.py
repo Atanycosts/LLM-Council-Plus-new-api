@@ -136,7 +136,8 @@ class SendMessageRequest(BaseModel):
     content: str = Field(min_length=1, max_length=100_000)  # 100KB text limit
     attachments: Optional[List[FileAttachment]] = Field(default=None, max_length=5)  # Max 5 attachments
     temporary: Optional[bool] = False  # If True, don't save to storage (Feature 5)
-    web_search: Optional[bool] = False  # If True, Chairman optimizes query for Tavily search
+    web_search: Optional[bool] = False  # DEPRECATED: use web_search_provider
+    web_search_provider: Optional[str] = Field(default=None, pattern="^(tavily|exa)$")  # 'tavily' or 'exa'
 
     @field_validator('attachments')
     @classmethod
@@ -971,13 +972,16 @@ async def send_message_stream(
             yield f"data: {json.dumps({'type': 'stage1_start', 'timestamp': stage1_start_time})}\n\n"
 
             images_for_council = image_attachments if image_attachments else None
+            # Determine web search provider (prefer explicit provider, fallback to legacy boolean)
+            web_search_provider = request.web_search_provider or ('tavily' if request.web_search else None)
+
             async for item in stage1_collect_responses_streaming(
                 full_query,
                 conversation_history,
                 conv_models,
                 images_for_council,
                 conversation_id,
-                force_web_search=request.web_search,
+                web_search_provider=web_search_provider,
                 chairman=conv_chairman
             ):
                 # Handle tool_outputs message (first yield if tools were used)
