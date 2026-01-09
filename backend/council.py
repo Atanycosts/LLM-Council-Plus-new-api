@@ -232,9 +232,9 @@ def _has_research_signal(query: str) -> bool:
     q = query.lower()
     research_signals = {
         # English
-        "wikipedia", "wiki", "research", "paper", "arxiv", "definition", "history",
+        "wikipedia", "wiki", "research", "paper", "arxiv", "history",
         # Russian
-        "википедия", "вики", "исследование", "статья", "определение", "история", "что такое", "кто такой"
+        "википедия", "вики", "исследование", "статья", "история"
     }
     return any(sig in q for sig in research_signals)
 

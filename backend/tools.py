@@ -205,6 +205,14 @@ def duckduckgo_tool() -> Tool:
         logger.warning("DuckDuckGo tool unavailable: missing langchain_community")
         return None
 
+    # DuckDuckGoSearchRun depends on the third-party `ddgs` package at runtime.
+    # If it's missing, leave the tool unavailable rather than crashing chat.
+    try:
+        from ddgs import DDGS  # noqa: F401
+    except Exception:  # pragma: no cover
+        logger.warning("DuckDuckGo tool unavailable: missing ddgs (install via `pip install -U ddgs`).")
+        return None
+
     search = DuckDuckGoSearchRun()
     return Tool(
         name="web_search",
