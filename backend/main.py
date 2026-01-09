@@ -44,7 +44,7 @@ from .council import (
 )
 from .file_parser import parse_file, get_supported_extensions, is_image_file
 from .auth import LoginRequest, authenticate, validate_auth_token, validate_token, get_usernames, validate_jwt_config
-from .config import AUTH_ENABLED, MIN_CHAIRMAN_CONTEXT
+from .config import AUTH_ENABLED, MIN_CHAIRMAN_CONTEXT, ROUTER_TYPE
 from .gdrive import upload_to_drive, get_drive_status, is_drive_configured
 from .database import init_database
 from .runtime_settings import (
@@ -130,6 +130,7 @@ class CreateConversationRequest(BaseModel):
     chairman: Optional[str] = Field(default=None, max_length=100)  # Chairman/judge model
     username: Optional[str] = Field(default=None, max_length=50)  # User who created the conversation
     execution_mode: Optional[str] = Field(default=None, pattern="^(chat_only|chat_ranking|full)$")
+    router_type: Optional[str] = Field(default=None, pattern="^(openrouter|ollama)$")
 
 
 class FileAttachment(BaseModel):
@@ -411,8 +412,9 @@ async def save_setup_config(request: SetupConfigRequest):
 
 # ==================== Models Endpoint ====================
 
-# Cache for OpenRouter models (5 minute TTL)
-_models_cache = {"data": None, "timestamp": 0}
+# Cache for models per router_type (5 minute TTL)
+# Shape: { "openrouter": {"data": {...}, "timestamp": 123}, "ollama": {...} }
+_models_cache: Dict[str, Dict[str, Any]] = {}
 _MODELS_CACHE_TTL = 300  # 5 minutes
 
 
@@ -497,21 +499,26 @@ def _extract_provider(model_id: str, model_name: str) -> str:
 
 
 @app.get("/api/models")
-async def get_available_models():
+async def get_available_models(router_type: Optional[str] = None):
     """
     Get available models from OpenRouter or Ollama.
     Returns formatted model list with pricing and capabilities.
     Cached for 5 minutes to reduce API calls.
     """
-    from .config import ROUTER_TYPE, OPENROUTER_API_KEY, OLLAMA_HOST
+    from .config import OPENROUTER_API_KEY, OLLAMA_HOST, MIN_CHAIRMAN_CONTEXT
 
     global _models_cache
 
-    # Check cache
-    if _models_cache["data"] and (time.time() - _models_cache["timestamp"]) < _MODELS_CACHE_TTL:
-        return _models_cache["data"]
+    effective_router_type = (router_type or ROUTER_TYPE or "openrouter").lower()
+    if effective_router_type not in {"openrouter", "ollama"}:
+        raise HTTPException(status_code=400, detail="Invalid router_type. Must be 'openrouter' or 'ollama'.")
 
-    if ROUTER_TYPE == "ollama":
+    # Check cache
+    cache_entry = _models_cache.get(effective_router_type)
+    if cache_entry and cache_entry.get("data") and (time.time() - cache_entry.get("timestamp", 0)) < _MODELS_CACHE_TTL:
+        return cache_entry["data"]
+
+    if effective_router_type == "ollama":
         # Fetch from Ollama local API
         try:
             async with httpx.AsyncClient() as client:
@@ -527,6 +534,7 @@ async def get_available_models():
                         "name": model["name"],
                         "provider": "Ollama (Local)",
                         "context": "N/A",
+                        "contextLength": MIN_CHAIRMAN_CONTEXT,
                         "inputPrice": "FREE",
                         "outputPrice": "FREE",
                         "tier": "free",
@@ -537,7 +545,7 @@ async def get_available_models():
 
                 from .config import MAX_COUNCIL_MODELS
                 result = {"models": models, "router_type": "ollama", "max_models": MAX_COUNCIL_MODELS}
-                _models_cache = {"data": result, "timestamp": time.time()}
+                _models_cache[effective_router_type] = {"data": result, "timestamp": time.time()}
                 return result
 
         except httpx.RequestError as e:
@@ -612,7 +620,7 @@ async def get_available_models():
 
                 from .config import MAX_COUNCIL_MODELS
                 result = {"models": models, "router_type": "openrouter", "count": len(models), "max_models": MAX_COUNCIL_MODELS}
-                _models_cache = {"data": result, "timestamp": time.time()}
+                _models_cache[effective_router_type] = {"data": result, "timestamp": time.time()}
                 return result
 
         except httpx.RequestError as e:
@@ -695,8 +703,10 @@ async def create_conversation(
 ):
     """Create a new conversation. Requires authentication."""
     # Validate chairman model context length if specified
-    if request.chairman and _models_cache.get("data"):
-        models = _models_cache["data"].get("models", [])
+    router_type = (getattr(request, "router_type", None) or ROUTER_TYPE or "openrouter").strip().lower()
+    cache_entry = _models_cache.get(router_type)
+    if request.chairman and cache_entry and cache_entry.get("data"):
+        models = cache_entry["data"].get("models", [])
         chairman_model = next((m for m in models if m["id"] == request.chairman), None)
         if chairman_model:
             context_length = chairman_model.get("contextLength", 0)
@@ -715,6 +725,7 @@ async def create_conversation(
         chairman=request.chairman,
         username=username,
         execution_mode=request.execution_mode or "full",
+        router_type=router_type,
     )
     return conversation
 
@@ -1014,6 +1025,9 @@ async def send_message_stream(
     conv_models = conversation.get("models")
     conv_chairman = conversation.get("chairman")
     execution_mode = (conversation.get("execution_mode") or "full").strip().lower()
+    router_type = (conversation.get("router_type") or ROUTER_TYPE or "openrouter").strip().lower()
+    if router_type not in {"openrouter", "ollama"}:
+        router_type = ROUTER_TYPE
     if execution_mode not in {"chat_only", "chat_ranking", "full"}:
         execution_mode = "full"
 
@@ -1037,7 +1051,7 @@ async def send_message_stream(
 
             # Start title generation in parallel (don't await yet)
             if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(request.content))
+                title_task = asyncio.create_task(generate_conversation_title(request.content, router_type=router_type))
 
             # Stage 1: Collect responses with streaming - send each model's response as it completes
             # Pass images for multimodal queries
@@ -1058,7 +1072,8 @@ async def send_message_stream(
                 images_for_council,
                 conversation_id,
                 web_search_provider=web_search_provider,
-                chairman=conv_chairman
+                chairman=conv_chairman,
+                router_type=router_type,
             ):
                 # Handle tool_outputs message (first yield if tools were used)
                 if item.get("type") == "tool_outputs":
@@ -1107,7 +1122,9 @@ async def send_message_stream(
             yield f"data: {json.dumps({'type': 'stage2_start', 'timestamp': stage2_start_time})}\n\n"
 
             # Run Stage 2 with periodic heartbeats (CloudFront times out after ~30s without data)
-            stage2_task = asyncio.create_task(stage2_collect_rankings(full_query, stage1_results, conv_models))
+            stage2_task = asyncio.create_task(
+                stage2_collect_rankings(full_query, stage1_results, conv_models, router_type=router_type)
+            )
             heartbeat_interval = 15  # Send heartbeat every 15 seconds
             heartbeat_count = 0
             while not stage2_task.done():
@@ -1173,7 +1190,16 @@ async def send_message_stream(
             yield f"data: {json.dumps({'type': 'stage3_start', 'timestamp': stage3_start_time})}\n\n"
 
             # Run Stage 3 with periodic heartbeats
-            stage3_task = asyncio.create_task(stage3_synthesize_final(full_query, stage1_results, stage2_results, conv_chairman, tool_outputs=tool_outputs))
+            stage3_task = asyncio.create_task(
+                stage3_synthesize_final(
+                    full_query,
+                    stage1_results,
+                    stage2_results,
+                    conv_chairman,
+                    tool_outputs=tool_outputs,
+                    router_type=router_type,
+                )
+            )
             heartbeat_count = 0
             while not stage3_task.done():
                 try:
