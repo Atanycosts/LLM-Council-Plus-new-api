@@ -1,11 +1,21 @@
-"""Google Drive integration for uploading conversation exports."""
+"""Google Drive integration for uploading conversation exports.
+
+This feature is optional. The backend must be able to start even when the
+Google API dependencies are not installed.
+"""
 
 import os
 import io
 from typing import Optional, Dict, Any
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+
+try:  # pragma: no cover
+    from google.oauth2 import service_account  # type: ignore
+    from googleapiclient.discovery import build  # type: ignore
+    from googleapiclient.http import MediaIoBaseUpload  # type: ignore
+except ImportError:  # pragma: no cover
+    service_account = None
+    build = None
+    MediaIoBaseUpload = None
 
 from .config import (
     GOOGLE_DRIVE_FOLDER_ID,
@@ -33,6 +43,12 @@ def get_drive_service():
 
     if not GOOGLE_DRIVE_ENABLED:
         raise ValueError("Google Drive is not configured. Set GOOGLE_DRIVE_FOLDER_ID in .env")
+
+    if service_account is None or build is None or MediaIoBaseUpload is None:
+        raise ImportError(
+            "Google Drive dependencies are not installed. "
+            "Install 'google-api-python-client' and 'google-auth' to enable Drive uploads."
+        )
 
     if not os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE):
         raise FileNotFoundError(
@@ -104,6 +120,9 @@ def upload_to_drive(
 def is_drive_configured() -> bool:
     """Check if Google Drive is properly configured."""
     if not GOOGLE_DRIVE_ENABLED:
+        return False
+
+    if service_account is None or build is None or MediaIoBaseUpload is None:
         return False
 
     if not os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE):
