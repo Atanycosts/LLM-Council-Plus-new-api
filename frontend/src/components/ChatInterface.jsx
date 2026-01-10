@@ -5,6 +5,7 @@ import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import TokenStats from './TokenStats';
+import SearchContext from './SearchContext';
 import { api } from '../api';
 import { exportToMarkdown, downloadMarkdown, generateFilename } from '../utils/exportMarkdown';
 import { formatDuration, formatTimestamp } from '../utils/timing';
@@ -236,6 +237,8 @@ export default function ChatInterface({
               ) : (
                 <div className="assistant-message">
                   <div className="message-label">LLM Council Plus</div>
+
+                  <SearchContext toolOutputs={msg.metadata?.tool_outputs || msg.tool_outputs} />
 
                   {/* Stage 1 */}
                   {msg.loading?.stage1 && (

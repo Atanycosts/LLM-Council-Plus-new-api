@@ -320,6 +320,23 @@ function App() {
       // Send message with streaming (pass attachments if any)
       await api.sendMessageStream(currentConversationId, content, (eventType, event) => {
         switch (eventType) {
+          case 'tool_outputs':
+            updateStreamingState((prev) => {
+              const lastIdx = prev.messages.length - 1;
+              const lastMsg = prev.messages[lastIdx];
+              if (!lastMsg || lastMsg.role !== 'assistant') return prev;
+              const currentMetadata = lastMsg.metadata || {};
+              const newLastMsg = {
+                ...lastMsg,
+                metadata: {
+                  ...currentMetadata,
+                  tool_outputs: event.data || [],
+                },
+              };
+              return { ...prev, messages: [...prev.messages.slice(0, -1), newLastMsg] };
+            });
+            break;
+
           case 'stage1_start':
             updateStreamingState((prev) => {
               const lastIdx = prev.messages.length - 1;
