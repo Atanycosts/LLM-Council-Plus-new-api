@@ -371,11 +371,10 @@ async def save_setup_config(request: SetupConfigRequest):
                     status_code=403,
                     detail="Application is already configured. Edit .env file manually to change settings."
                 )
-        except Exception:
-            pass  # If we can't read, proceed with setup
-
-    # Find .env file location
-    env_path = Path(__file__).parent.parent / ".env"
+        except HTTPException:
+            raise  # Re-raise HTTP exceptions (don't swallow security checks)
+        except OSError:
+            pass  # If we can't read file, proceed with setup
 
     # Build new config lines
     updates = {}
