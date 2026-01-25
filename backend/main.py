@@ -1329,11 +1329,15 @@ async def send_message_stream(
             for task in tasks_to_cleanup:
                 task.cancel()
             # Await cancelled tasks to prevent "task was destroyed but pending" warnings
+            # Use shield to protect cleanup from cancellation, and handle CancelledError
+            # (which is a BaseException in Python 3.8+, not caught by except Exception)
             if tasks_to_cleanup:
                 try:
-                    await asyncio.gather(*tasks_to_cleanup, return_exceptions=True)
+                    await asyncio.shield(asyncio.gather(*tasks_to_cleanup, return_exceptions=True))
+                except asyncio.CancelledError:
+                    pass  # Cleanup was interrupted by cancellation, tasks are already cancelled
                 except Exception:
-                    pass  # Ignore cleanup errors
+                    pass  # Ignore other cleanup errors
 
             # CRITICAL FIX: Save partial results if client disconnected before completion
             # This ensures we don't lose work when client closes connection mid-stream
