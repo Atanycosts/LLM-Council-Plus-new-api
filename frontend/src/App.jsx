@@ -360,6 +360,11 @@ function App() {
 
           case 'stage1_model_response':
             // Add individual model response to stage1 array as it arrives
+            // Guard against malformed events
+            if (!event?.data?.model) {
+              console.warn('Received stage1_model_response without model data:', event);
+              break;
+            }
             // Show toast notification for errors (timeout, rate limit, etc.)
             if (event.data.error) {
               const modelName = event.data.model.split('/')[1] || event.data.model;
