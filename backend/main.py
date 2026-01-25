@@ -404,6 +404,21 @@ async def save_setup_config(request: SetupConfigRequest):
     if not updates:
         raise HTTPException(status_code=400, detail="No configuration provided")
 
+    # Sanitize values to prevent .env injection (newlines could inject new variables)
+    def sanitize_env_value(value: str) -> str:
+        """Remove/escape characters that could cause .env injection."""
+        if not isinstance(value, str):
+            return str(value)
+        # Remove newlines and carriage returns (could inject new variables)
+        sanitized = value.replace('\n', '').replace('\r', '')
+        # If value contains spaces or special chars, quote it
+        if ' ' in sanitized or '"' in sanitized or "'" in sanitized:
+            # Escape existing quotes and wrap in quotes
+            sanitized = '"' + sanitized.replace('"', '\\"') + '"'
+        return sanitized
+
+    updates = {k: sanitize_env_value(v) for k, v in updates.items()}
+
     # Read existing .env or create new
     existing_lines = []
     existing_keys = set()
