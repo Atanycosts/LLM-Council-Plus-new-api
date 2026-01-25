@@ -403,6 +403,9 @@ async def save_setup_config(request: SetupConfigRequest):
     if not updates:
         raise HTTPException(status_code=400, detail="No configuration provided")
 
+    # Keep raw values for os.environ (runtime), sanitize only for .env file
+    raw_updates = dict(updates)
+
     # Sanitize values to prevent .env injection (newlines could inject new variables)
     def sanitize_env_value(value: str) -> str:
         """Remove/escape characters that could cause .env injection."""
@@ -410,13 +413,14 @@ async def save_setup_config(request: SetupConfigRequest):
             return str(value)
         # Remove newlines and carriage returns (could inject new variables)
         sanitized = value.replace('\n', '').replace('\r', '')
-        # If value contains spaces or special chars, quote it
-        if ' ' in sanitized or '"' in sanitized or "'" in sanitized:
+        # If value contains spaces, quotes, or # (comment char), quote it
+        if ' ' in sanitized or '"' in sanitized or "'" in sanitized or '#' in sanitized:
             # Escape existing quotes and wrap in quotes
             sanitized = '"' + sanitized.replace('"', '\\"') + '"'
         return sanitized
 
-    updates = {k: sanitize_env_value(v) for k, v in updates.items()}
+    # file_updates = sanitized values for .env file
+    file_updates = {k: sanitize_env_value(v) for k, v in updates.items()}
 
     # Read existing .env or create new
     existing_lines = []
@@ -427,28 +431,28 @@ async def save_setup_config(request: SetupConfigRequest):
                 stripped = line.strip()
                 if stripped and not stripped.startswith('#') and '=' in stripped:
                     key = stripped.split('=')[0]
-                    if key not in updates:
+                    if key not in file_updates:
                         existing_lines.append(line.rstrip())
                     existing_keys.add(key)
                 elif stripped:
                     existing_lines.append(line.rstrip())
 
-    # Add new/updated values
-    for key, value in updates.items():
+    # Add new/updated values (sanitized for file)
+    for key, value in file_updates.items():
         existing_lines.append(f"{key}={value}")
 
     # Mark setup as complete (prevents re-running setup endpoint)
     if "SETUP_COMPLETE" not in existing_keys:
         existing_lines.append("SETUP_COMPLETE=true")
-        updates["SETUP_COMPLETE"] = "true"
+        raw_updates["SETUP_COMPLETE"] = "true"
 
     # Write back
     with open(env_path, 'w') as f:
         f.write('\n'.join(existing_lines) + '\n')
 
-    # CRITICAL: Directly update os.environ to override Docker's env vars
+    # CRITICAL: Directly update os.environ with RAW values (not quoted/escaped)
     # load_dotenv(override=True) doesn't override vars set by Docker at container startup
-    for key, value in updates.items():
+    for key, value in raw_updates.items():
         os.environ[key] = value
 
     # Reload config and auth modules to pick up new values in memory
