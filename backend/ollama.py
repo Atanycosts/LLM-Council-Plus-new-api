@@ -2,10 +2,27 @@
 
 import logging
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Union, TypedDict
 from .config import OLLAMA_HOST, DEFAULT_TIMEOUT
 
 logger = logging.getLogger(__name__)
+
+
+class SuccessResponse(TypedDict, total=False):
+    """Successful response from Ollama."""
+    content: str
+    reasoning_details: Any
+
+
+class ErrorResponse(TypedDict):
+    """Error response matching OpenRouter format."""
+    error: bool  # Always True
+    error_type: str  # 'connection', 'not_found', 'http', 'timeout', 'unknown'
+    error_message: str
+
+
+# Union type for query_model return
+QueryResponse = Union[SuccessResponse, ErrorResponse]
 
 
 async def query_model(
@@ -13,7 +30,7 @@ async def query_model(
     messages: List[Dict[str, str]],
     timeout: float = None,
     temperature: float | None = None,
-) -> Optional[Dict[str, Any]]:
+) -> QueryResponse:
     """
     Query a single model via Ollama API.
 
@@ -21,9 +38,13 @@ async def query_model(
         model: Ollama model identifier (e.g., "gemma3:latest")
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds (defaults to DEFAULT_TIMEOUT from config)
+        temperature: Optional temperature for response generation
 
     Returns:
-        Response dict with 'content' and optional 'reasoning_details', or None if failed
+        On success: dict with 'content' (str) and optional 'reasoning_details'
+        On error: dict with 'error' (True), 'error_type', and 'error_message'
+
+        Error types: 'connection', 'not_found', 'http', 'timeout', 'unknown'
     """
     if timeout is None:
         timeout = DEFAULT_TIMEOUT
