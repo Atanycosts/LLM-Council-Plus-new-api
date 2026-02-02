@@ -16,23 +16,23 @@
 
 ## Plus 做的差异
 
-| 功能 | 原版 | 本仓库（LLM-Council-Plus-new-api） |
-| --- | --- | --- |
-| 部署 | 手动 Python/npm 配置 | Docker Compose（一键启动） |
-| 配置 | 手动编辑 config.py | 初始化向导可视化配置 |
-| 模型 | 4 个硬编码模型 | OpenAI 兼容 New API 模型目录 |
-| 本地模型 | ❌ | ❌ |
-| 认证 | ❌ | ✅ JWT 多用户认证 |
-| 存储 | 仅 JSON 文件 | JSON / PostgreSQL / MySQL |
-| Token 优化 | ❌ | ✅ TOON 格式（20-60% 节省） |
-| 网页搜索 | ❌ | ✅ DuckDuckGo + Tavily + Exa + Brave |
-| 文件附件 | ❌ | ✅ PDF / TXT / MD / 图片 |
-| 工具 | ❌ | ✅ 计算器 / Wikipedia / ArXiv / Yahoo Finance |
-| 实时流式 | 基础 | SSE + 心跳 + 状态持久化 |
-| 错误处理 | 静默失败 | Toast 提示 + 可视化状态 |
-| 热更新 | ❌ | ✅ 配置变更无需重启 |
-| 对话搜索 | ❌ | ✅ 按标题过滤 + 相对时间 |
-| 阶段超时 | ❌ | ✅ 90s 阶段级超时（优先完成） |
+| 功能 | 原版 | LLM-Council-Plus | LLM-Council-Plus-new-api |
+| --- | --- | --- | --- |
+| 部署 | 手动 Python/npm 配置 | Docker Compose（一键启动） | Docker Compose（一键启动） |
+| 配置 | 手动编辑 config.py | 初始化向导可视化配置 | 初始化向导可视化配置 |
+| 模型 | 4 个硬编码模型 | OpenRouter 全量目录（100+ 模型） | OpenAI 兼容 New API 模型目录 |
+| 本地模型 | ❌ | ✅ Ollama 支持 | ❌ |
+| 认证 | ❌ | ✅ JWT 多用户认证 | ✅ JWT 多用户认证 |
+| 存储 | 仅 JSON 文件 | JSON / PostgreSQL / MySQL | JSON / PostgreSQL / MySQL |
+| Token 优化 | ❌ | ✅ TOON 格式（20-60% 节省） | ✅ TOON 格式（20-60% 节省） |
+| 网页搜索 | ❌ | ✅ DuckDuckGo + Tavily + Exa + Brave | ✅ DuckDuckGo + Tavily + Exa + Brave |
+| 文件附件 | ❌ | ✅ PDF / TXT / MD / 图片 | ✅ PDF / TXT / MD / 图片 |
+| 工具 | ❌ | ✅ 计算器 / Wikipedia / ArXiv / Yahoo Finance | ✅ 计算器 / Wikipedia / ArXiv / Yahoo Finance |
+| 实时流式 | 基础 | SSE + 心跳 + 状态持久化 | SSE + 心跳 + 状态持久化 |
+| 错误处理 | 静默失败 | Toast 提示 + 可视化状态 | Toast 提示 + 可视化状态 |
+| 热更新 | ❌ | ✅ 配置变更无需重启 | ✅ 配置变更无需重启 |
+| 对话搜索 | ❌ | ✅ 按标题过滤 + 相对时间 | ✅ 按标题过滤 + 相对时间 |
+| 阶段超时 | ❌ | ✅ 90s 阶段级超时（优先完成） | ✅ 90s 阶段级超时（优先完成） |
 
 ## 运行
 
