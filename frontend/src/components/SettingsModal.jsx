@@ -35,7 +35,7 @@ const RUNTIME_SETTINGS_KEYS = [
 
 function sanitizeRuntimeSettingsJson(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Invalid settings file: expected a JSON object');
+    throw new Error('设置文件无效：应为 JSON 对象');
   }
 
   const droppedKeys = [];
@@ -75,7 +75,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       setOriginal(settings);
       setDraft(settings);
     } catch (e) {
-      setError(e.message || 'Failed to load settings');
+      setError(e.message || '加载设置失败');
     } finally {
       setIsLoading(false);
     }
@@ -105,17 +105,17 @@ export default function SettingsModal({ isOpen, onClose }) {
       const updated = await api.updateRuntimeSettings(patch);
       setOriginal(updated);
       setDraft(updated);
-      setSuccess('Saved!');
+      setSuccess('已保存');
       setTimeout(() => setSuccess(''), 1500);
     } catch (e) {
-      setError(e.message || 'Failed to save settings');
+      setError(e.message || '保存设置失败');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleReset = async () => {
-    if (!window.confirm('Reset runtime settings to defaults?')) return;
+    if (!window.confirm('确认重置为默认设置？')) return;
     setIsSaving(true);
     setError('');
     setSuccess('');
@@ -123,10 +123,10 @@ export default function SettingsModal({ isOpen, onClose }) {
       const updated = await api.resetRuntimeSettings();
       setOriginal(updated);
       setDraft(updated);
-      setSuccess('Reset to defaults');
+      setSuccess('已重置为默认');
       setTimeout(() => setSuccess(''), 1500);
     } catch (e) {
-      setError(e.message || 'Failed to reset settings');
+      setError(e.message || '重置设置失败');
     } finally {
       setIsSaving(false);
     }
@@ -139,7 +139,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       const { sanitized } = sanitizeRuntimeSettingsJson(config);
       downloadJson(`llm-council-settings-${new Date().toISOString().slice(0, 10)}.json`, sanitized);
     } catch (e) {
-      setError(e.message || 'Failed to export settings');
+      setError(e.message || '导出设置失败');
     }
   };
 
@@ -157,15 +157,15 @@ export default function SettingsModal({ isOpen, onClose }) {
       const json = JSON.parse(text);
       const { sanitized, droppedKeys } = sanitizeRuntimeSettingsJson(json);
       if (droppedKeys.length) {
-        setSuccess(`Imported (ignored ${droppedKeys.length} unsupported keys)`);
+        setSuccess(`已导入（已忽略 ${droppedKeys.length} 个不支持的字段）`);
       }
       const updated = await api.importRuntimeSettings(sanitized);
       setOriginal(updated);
       setDraft(updated);
-      if (!droppedKeys.length) setSuccess('Imported');
+      if (!droppedKeys.length) setSuccess('已导入');
       setTimeout(() => setSuccess(''), 1500);
     } catch (err) {
-      setError(err.message || 'Import failed');
+      setError(err.message || '导入失败');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -177,8 +177,8 @@ export default function SettingsModal({ isOpen, onClose }) {
     <div className="settings-modal-overlay" onClick={onClose}>
       <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="settings-modal-header">
-          <h2>Settings</h2>
-          <button className="settings-close" onClick={onClose} aria-label="Close settings">
+          <h2>设置</h2>
+          <button className="settings-close" onClick={onClose} aria-label="关闭设置">
             ×
           </button>
         </div>
@@ -188,37 +188,37 @@ export default function SettingsModal({ isOpen, onClose }) {
             className={`settings-tab ${activeTab === 'prompts' ? 'active' : ''}`}
             onClick={() => setActiveTab('prompts')}
           >
-            Prompts
+            提示词
           </button>
           <button
             className={`settings-tab ${activeTab === 'temps' ? 'active' : ''}`}
             onClick={() => setActiveTab('temps')}
           >
-            Temperatures
+            温度
           </button>
           <button
             className={`settings-tab ${activeTab === 'search' ? 'active' : ''}`}
             onClick={() => setActiveTab('search')}
           >
-            Web Search
+            网页搜索
           </button>
           <button
             className={`settings-tab ${activeTab === 'backup' ? 'active' : ''}`}
             onClick={() => setActiveTab('backup')}
           >
-            Backup
+            备份
           </button>
         </div>
 
         <div className="settings-modal-body">
-          {isLoading && <div className="settings-loading">Loading…</div>}
-          {!isLoading && !draft && <div className="settings-loading">No settings loaded</div>}
+          {isLoading && <div className="settings-loading">加载中…</div>}
+          {!isLoading && !draft && <div className="settings-loading">未加载到设置</div>}
 
           {!isLoading && draft && activeTab === 'prompts' && (
             <div className="settings-section">
               <div className="settings-field">
-                <label>Stage 1 Prompt Template</label>
-                <div className="settings-hint">Available placeholders: {'{user_query}'}, {'{full_query}'}</div>
+                <label>阶段 1 提示词模板</label>
+                <div className="settings-hint">可用占位符：{'{user_query}'}、{'{full_query}'}</div>
                 <textarea
                   value={draft.stage1_prompt_template || ''}
                   onChange={(e) => setDraft((p) => ({ ...p, stage1_prompt_template: e.target.value }))}
@@ -226,8 +226,8 @@ export default function SettingsModal({ isOpen, onClose }) {
                 />
               </div>
               <div className="settings-field">
-                <label>Stage 2 Prompt Template</label>
-                <div className="settings-hint">Available placeholders: {'{user_query}'}, {'{responses_text}'}</div>
+                <label>阶段 2 提示词模板</label>
+                <div className="settings-hint">可用占位符：{'{user_query}'}、{'{responses_text}'}</div>
                 <textarea
                   value={draft.stage2_prompt_template || ''}
                   onChange={(e) => setDraft((p) => ({ ...p, stage2_prompt_template: e.target.value }))}
@@ -235,9 +235,9 @@ export default function SettingsModal({ isOpen, onClose }) {
                 />
               </div>
               <div className="settings-field">
-                <label>Stage 3 Prompt Template</label>
+                <label>阶段 3 提示词模板</label>
                 <div className="settings-hint">
-                  Available placeholders: {'{user_query}'}, {'{stage1_text}'}, {'{stage2_text}'}, {'{rankings_block}'}, {'{tools_text}'}
+                  可用占位符：{'{user_query}'}、{'{stage1_text}'}、{'{stage2_text}'}、{'{rankings_block}'}、{'{tools_text}'}
                 </div>
                 <textarea
                   value={draft.stage3_prompt_template || ''}
@@ -251,7 +251,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           {!isLoading && draft && activeTab === 'temps' && (
             <div className="settings-section">
               <div className="settings-field">
-                <label>Council Temperature: <span className="settings-value">{Number(draft.council_temperature).toFixed(2)}</span></label>
+                <label>委员会温度: <span className="settings-value">{Number(draft.council_temperature).toFixed(2)}</span></label>
                 <input
                   type="range"
                   min="0"
@@ -262,7 +262,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                 />
               </div>
               <div className="settings-field">
-                <label>Stage 2 Temperature: <span className="settings-value">{Number(draft.stage2_temperature).toFixed(2)}</span></label>
+                <label>阶段 2 温度: <span className="settings-value">{Number(draft.stage2_temperature).toFixed(2)}</span></label>
                 <input
                   type="range"
                   min="0"
@@ -273,7 +273,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                 />
               </div>
               <div className="settings-field">
-                <label>Chairman Temperature: <span className="settings-value">{Number(draft.chairman_temperature).toFixed(2)}</span></label>
+                <label>主席温度: <span className="settings-value">{Number(draft.chairman_temperature).toFixed(2)}</span></label>
                 <input
                   type="range"
                   min="0"
@@ -289,17 +289,17 @@ export default function SettingsModal({ isOpen, onClose }) {
           {!isLoading && draft && activeTab === 'search' && (
             <div className="settings-section">
               <div className="settings-field">
-                <label>Default Provider</label>
+                <label>默认提供方</label>
                 <div className="settings-hint">
-                  Provider selection and fetch limits are stored here. API keys are not stored or exported.
+                  提供方选择与抓取上限存储于此，API Key 不会被存储或导出。
                 </div>
                 <select
                   value={draft.web_search_provider || 'duckduckgo'}
                   onChange={(e) => setDraft((p) => ({ ...p, web_search_provider: e.target.value }))}
                   className="settings-select"
                 >
-                  <option value="off">Off</option>
-                  <option value="duckduckgo">DuckDuckGo (free)</option>
+                  <option value="off">关闭</option>
+                  <option value="duckduckgo">DuckDuckGo（免费）</option>
                   <option value="tavily">Tavily</option>
                   <option value="exa">Exa</option>
                   <option value="brave">Brave</option>
@@ -307,7 +307,7 @@ export default function SettingsModal({ isOpen, onClose }) {
               </div>
 
               <div className="settings-field">
-                <label>Max Results: <span className="settings-value">{Number(draft.web_max_results ?? 5)}</span></label>
+                <label>最大结果数: <span className="settings-value">{Number(draft.web_max_results ?? 5)}</span></label>
                 <input
                   type="range"
                   min="1"
@@ -320,10 +320,10 @@ export default function SettingsModal({ isOpen, onClose }) {
 
               <div className="settings-field">
                 <label>
-                  Full Article Fetch (Jina Reader): <span className="settings-value">{Number(draft.web_full_content_results ?? 0)}</span>
+                  全文抓取（Jina Reader）: <span className="settings-value">{Number(draft.web_full_content_results ?? 0)}</span>
                 </label>
                 <div className="settings-hint">
-                  Fetch full content for top N results when using DuckDuckGo/Brave. Set 0 to disable.
+                  使用 DuckDuckGo/Brave 时，为前 N 条结果抓取全文；设为 0 表示关闭。
                 </div>
                 <input
                   type="range"
@@ -340,11 +340,11 @@ export default function SettingsModal({ isOpen, onClose }) {
           {!isLoading && draft && activeTab === 'backup' && (
             <div className="settings-section">
               <p className="settings-hint">
-                Export/import contains non-secret runtime settings only. API keys and other secrets are not included.
+                导入/导出仅包含非敏感的运行设置，API Key 等密钥不会被包含。
               </p>
               <div className="settings-actions-row">
-                <button className="settings-btn" onClick={handleExport}>Export JSON</button>
-                <button className="settings-btn" onClick={handleImportClick}>Import JSON</button>
+                <button className="settings-btn" onClick={handleExport}>导出 JSON</button>
+                <button className="settings-btn" onClick={handleImportClick}>导入 JSON</button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -355,7 +355,7 @@ export default function SettingsModal({ isOpen, onClose }) {
               </div>
               <div className="settings-divider" />
               <button className="settings-btn danger" onClick={handleReset}>
-                Reset to Defaults
+                重置为默认
               </button>
             </div>
           )}
@@ -368,10 +368,10 @@ export default function SettingsModal({ isOpen, onClose }) {
           </div>
           <div className="settings-footer-actions">
             <button className="settings-btn secondary" onClick={load} disabled={isLoading || isSaving}>
-              Reload
+              重新加载
             </button>
             <button className="settings-btn primary" onClick={handleSave} disabled={!hasChanges || isSaving || isLoading}>
-              {isSaving ? 'Saving…' : (hasChanges ? 'Save' : 'Saved')}
+              {isSaving ? '保存中…' : (hasChanges ? '保存' : '已保存')}
             </button>
           </div>
         </div>

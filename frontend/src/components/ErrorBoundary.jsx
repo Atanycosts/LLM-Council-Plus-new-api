@@ -1,8 +1,8 @@
 import { Component } from 'react';
 
 /**
- * Error Boundary component to catch and display React errors gracefully.
- * Prevents the entire app from crashing when a component throws an error.
+ * 错误边界组件，用于优雅捕获并展示 React 运行时错误。
+ * 避免单个组件异常导致整个应用崩溃。
  */
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -16,8 +16,8 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error to console (could be sent to error reporting service)
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // 记录错误到控制台（可扩展为上报至监控服务）
+    console.error('错误边界捕获到异常:', error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -30,11 +30,11 @@ class ErrorBoundary extends Component {
       return (
         <div className="error-boundary">
           <div className="error-boundary-content">
-            <h2>Something went wrong</h2>
-            <p>An unexpected error occurred. Please try again.</p>
+            <h2>出现错误</h2>
+            <p>发生了意外问题，请稍后重试。</p>
             {this.state.error && (
               <details className="error-details">
-                <summary>Error details</summary>
+                <summary>错误详情</summary>
                 <pre>{this.state.error.toString()}</pre>
                 {this.state.errorInfo && (
                   <pre>{this.state.errorInfo.componentStack}</pre>
@@ -42,7 +42,7 @@ class ErrorBoundary extends Component {
               </details>
             )}
             <button onClick={this.handleRetry} className="retry-button">
-              Try Again
+              重试
             </button>
           </div>
         </div>

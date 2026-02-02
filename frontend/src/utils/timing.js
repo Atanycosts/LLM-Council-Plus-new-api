@@ -1,35 +1,35 @@
 /**
- * Timing utilities for formatting durations and timestamps.
- * Shared across Stage1, Stage2, Stage3, and ChatInterface components.
+ * 时间相关工具：格式化耗时与时间戳。
+ * 供 Stage1/Stage2/Stage3 与 ChatInterface 复用。
  */
 
 /**
- * Format a duration in seconds to a human-readable string.
- * @param {number} seconds - Duration in seconds
- * @returns {string|null} Formatted duration or null if invalid
+ * 将秒数格式化为可读字符串。
+ * @param {number} seconds - 秒数
+ * @returns {string|null} 格式化后的耗时，或无效时返回 null
  */
 export function formatDuration(seconds) {
   if (!seconds) return null;
   if (seconds < 1) {
-    return `${Math.round(seconds * 1000)}ms`;
+    return `${Math.round(seconds * 1000)}毫秒`;
   }
   if (seconds < 60) {
-    return `${seconds.toFixed(1)}s`;
+    return `${seconds.toFixed(1)}秒`;
   }
   const mins = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
-  return `${mins}m ${secs}s`;
+  return `${mins}分 ${secs}秒`;
 }
 
 /**
- * Format a Unix timestamp to a time string (HH:mm:ss.S).
- * @param {number} timestamp - Unix timestamp in seconds
- * @returns {string|null} Formatted time or null if invalid
+ * 将 Unix 时间戳格式化为时间字符串（HH:mm:ss.S）。
+ * @param {number} timestamp - Unix 时间戳（秒）
+ * @returns {string|null} 格式化后的时间，或无效时返回 null
  */
 export function formatTimestamp(timestamp) {
   if (!timestamp) return null;
   const date = new Date(timestamp * 1000);
-  // 24-hour format: HH:mm:ss.S
+  // 24 小时制：HH:mm:ss.S
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const seconds = String(date.getSeconds()).padStart(2, '0');
@@ -38,9 +38,9 @@ export function formatTimestamp(timestamp) {
 }
 
 /**
- * Format an ISO date string to a relative date (Today, Yesterday, etc).
- * @param {string} isoString - ISO date string (e.g., "2026-01-02T10:30:00")
- * @returns {string} Relative date string
+ * 将 ISO 日期字符串格式化为相对时间（今天、昨天等）。
+ * @param {string} isoString - ISO 日期字符串（如 "2026-01-02T10:30:00"）
+ * @returns {string} 相对日期字符串
  */
 export function formatRelativeDate(isoString) {
   if (!isoString) return '';
@@ -48,25 +48,25 @@ export function formatRelativeDate(isoString) {
   const date = new Date(isoString);
   const now = new Date();
 
-  // Reset time parts for date comparison
+  // 归零时间部分用于日期对比
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
   const diffDays = Math.floor((today - dateOnly) / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) {
-    // Today - show time
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // 今天：显示时间
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   } else if (diffDays === 1) {
-    return 'Yesterday';
+    return '昨天';
   } else if (diffDays < 7) {
-    // This week - show day name
-    return date.toLocaleDateString([], { weekday: 'short' });
+    // 本周：显示星期
+    return date.toLocaleDateString('zh-CN', { weekday: 'short' });
   } else if (date.getFullYear() === now.getFullYear()) {
-    // This year - show month and day
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    // 当年：显示月日
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
   } else {
-    // Older - show full date
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    // 更早：显示完整日期
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 }

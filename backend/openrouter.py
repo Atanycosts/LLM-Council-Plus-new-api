@@ -1,4 +1,4 @@
-"""OpenRouter API client for making LLM requests."""
+"""OpenAI 兼容 API client for making LLM requests."""
 
 import logging
 import httpx
@@ -20,7 +20,7 @@ def build_message_content(
     images: Optional[List[Dict[str, str]]] = None
 ) -> Union[str, List[Dict[str, Any]]]:
     """
-    Build message content for OpenRouter API.
+    Build message content for OpenAI 兼容 API.
 
     For text-only messages, returns a string.
     For multimodal messages (with images), returns an array of content parts.
@@ -60,10 +60,10 @@ async def query_model(
     temperature: float | None = None,
 ) -> Optional[Dict[str, Any]]:
     """
-    Query a single model via OpenRouter API with retry on rate limits.
+    Query a single model via OpenAI 兼容 API with retry on rate limits.
 
     Args:
-        model: OpenRouter model identifier (e.g., "openai/gpt-4o")
+        model: OpenAI 兼容模型标识符 (e.g., "openai/gpt-4o")
         messages: List of message dicts with 'role' and 'content'.
                   Content can be a string (text only) or an array of content parts
                   for multimodal messages (see build_message_content).
@@ -122,11 +122,11 @@ async def query_model(
                 }
 
         except httpx.ConnectError as e:
-            logger.error("Connection error querying model %s: Cannot connect to OpenRouter API. Error: %s", model, e)
+            logger.error("Connection error querying model %s: Cannot connect to API. Error: %s", model, e)
             return {
                 'error': True,
                 'error_type': 'connection',
-                'error_message': 'Cannot connect to OpenRouter API'
+                'error_message': '无法连接到 API'
             }
         except httpx.HTTPStatusError as e:
             # Handle 429 rate limit with retry
@@ -155,19 +155,19 @@ async def query_model(
                 return {
                     'error': True,
                     'error_type': 'auth',
-                    'error_message': 'Invalid API key'
+                    'error_message': 'API Key 无效'
                 }
             elif e.response.status_code == 404:
                 return {
                     'error': True,
                     'error_type': 'not_found',
-                    'error_message': error_msg or 'Model not available'
+                    'error_message': error_msg or '模型不可用'
                 }
             elif e.response.status_code == 429:
                 return {
                     'error': True,
                     'error_type': 'rate_limit',
-                    'error_message': f'Rate limited after {retries} retries'
+                    'error_message': f'触发限流，已重试 {retries} 次'
                 }
             else:
                 return {
@@ -180,7 +180,7 @@ async def query_model(
             return {
                 'error': True,
                 'error_type': 'timeout',
-                'error_message': f'Request timed out after {timeout}s'
+                'error_message': f'请求超时（{timeout}s）'
             }
         except Exception as e:
             logger.error("Unexpected error querying model %s: %s: %s", model, type(e).__name__, e)
@@ -201,7 +201,7 @@ async def query_models_parallel(
     Query multiple models in parallel.
 
     Args:
-        models: List of OpenRouter model identifiers
+        models: List of OpenAI 兼容模型标识符
         messages: List of message dicts to send to each model
         stage: Optional stage identifier for debugging (e.g., "STAGE1", "STAGE2")
 
@@ -232,7 +232,7 @@ async def query_models_streaming(
     Query multiple models in parallel and yield results as they complete.
 
     Args:
-        models: List of OpenRouter model identifiers
+        models: List of OpenAI 兼容模型标识符
         messages: List of message dicts to send to each model
 
     Yields:
@@ -291,7 +291,7 @@ async def query_models_with_stage_timeout(
     This prevents slow models from blocking the entire stage.
 
     Args:
-        models: List of OpenRouter model identifiers
+        models: List of OpenAI 兼容模型标识符
         messages: List of message dicts to send to each model
         stage: Optional stage identifier for debugging
         stage_timeout: Maximum time to wait for this stage (seconds)
@@ -390,7 +390,7 @@ async def query_models_with_stage_timeout(
             results[model] = {
                 'error': True,
                 'error_type': 'stage_timeout',
-                'error_message': f'Model did not respond within stage timeout ({stage_timeout}s)'
+                'error_message': f'模型在阶段超时内未响应（{stage_timeout}s）'
             }
             logger.warning("[%s] Model %s timed out at stage level", stage, model)
 

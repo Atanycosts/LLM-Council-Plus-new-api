@@ -5,26 +5,26 @@ import remarkGfm from 'remark-gfm';
 import { formatDuration, formatTimestamp } from '../utils/timing';
 import './Stage2.css';
 
-// Error type to user-friendly message mapping
+// 错误类型到可读提示的映射
 const ERROR_MESSAGES = {
-  rate_limit: 'Rate limited - too many requests',
-  not_found: 'Model not available',
-  auth: 'Authentication error',
-  timeout: 'Request timed out',
-  connection: 'Connection error',
-  empty: 'Empty response',
-  unknown: 'Unknown error',
+  rate_limit: '触发限流：请求过多',
+  not_found: '模型不可用',
+  auth: '认证失败',
+  timeout: '请求超时',
+  connection: '连接失败',
+  empty: '空响应',
+  unknown: '未知错误',
 };
 
 function deAnonymizeText(text, labelToModel) {
   if (!labelToModel) return text;
 
   let result = text;
-  // Replace each "Response X" with the actual model name
-  // Using split/join instead of RegExp to prevent ReDoS attacks
+  // 将 "Response X" 替换为实际模型名
+  // 使用 split/join 替代正则，避免 ReDoS 风险
   Object.entries(labelToModel).forEach(([label, model]) => {
     const modelShortName = model.split('/')[1] || model;
-    // Safe string replacement without RegExp (prevents ReDoS)
+    // 安全替换（不使用正则以避免 ReDoS）
     result = result.split(label).join(`**${modelShortName}**`);
   });
   return result;
@@ -45,24 +45,24 @@ const Stage2 = memo(function Stage2({ rankings, labelToModel, aggregateRankings,
       {timings && (timings.start || timings.end) && (
         <div className="stage-timing-top-right">
           {timings.start && (
-            <span className="timing-start">Started: {formatTimestamp(timings.start)}</span>
+            <span className="timing-start">开始: {formatTimestamp(timings.start)}</span>
           )}
           {timings.end && (
-            <span className="timing-end">Ended: {formatTimestamp(timings.end)}</span>
+            <span className="timing-end">结束: {formatTimestamp(timings.end)}</span>
           )}
           {timings.duration !== null && timings.duration !== undefined && (
-            <span className="timing-duration">Elapsed: {formatDuration(timings.duration)}</span>
+            <span className="timing-duration">耗时: {formatDuration(timings.duration)}</span>
           )}
         </div>
       )}
       <div className="stage-header">
-        <h3 className="stage-title">Stage 2: Peer Rankings</h3>
+        <h3 className="stage-title">阶段 2：互评排序</h3>
       </div>
 
-      <h4>Raw Evaluations</h4>
+      <h4>原始评审</h4>
       <p className="stage-description">
-        Each model evaluated all responses (anonymized as Response A, B, C, etc.) and provided rankings.
-        Below, model names are shown in <strong>bold</strong> for readability, but the original evaluation used anonymous labels.
+        每个模型会评估全部回答（以 Response A、B、C 等匿名标签表示）并给出排序。
+        为便于阅读，下方将模型名以<strong>加粗</strong>显示，但原始评审使用的是匿名标签。
       </p>
 
       <div className="tabs">
@@ -86,7 +86,7 @@ const Stage2 = memo(function Stage2({ rankings, labelToModel, aggregateRankings,
         {hasError ? (
           <div className="error-content">
             <div className="error-badge">
-              {ERROR_MESSAGES[currentRanking.error_type] || 'Error'}
+              {ERROR_MESSAGES[currentRanking.error_type] || '错误'}
             </div>
             <div className="error-message">
               {currentRanking.error_message}
@@ -103,7 +103,7 @@ const Stage2 = memo(function Stage2({ rankings, labelToModel, aggregateRankings,
             {currentRanking.parsed_ranking &&
              currentRanking.parsed_ranking.length > 0 && (
               <div className="parsed-ranking">
-                <strong>Extracted Ranking:</strong>
+                <strong>解析出的排序：</strong>
                 <ol>
                   {currentRanking.parsed_ranking.map((label, i) => (
                     <li key={i}>
@@ -121,9 +121,9 @@ const Stage2 = memo(function Stage2({ rankings, labelToModel, aggregateRankings,
 
       {aggregateRankings && aggregateRankings.length > 0 && (
         <div className="aggregate-rankings">
-          <h4>Aggregate Rankings (Street Cred)</h4>
+          <h4>综合排序（综合评价）</h4>
           <p className="stage-description">
-            Combined results across all peer evaluations (lower score is better):
+            汇总所有互评结果（分数越低越好）：
           </p>
           <div className="aggregate-list">
             {aggregateRankings.map((agg, index) => (
@@ -133,10 +133,10 @@ const Stage2 = memo(function Stage2({ rankings, labelToModel, aggregateRankings,
                   {agg.model.split('/')[1] || agg.model}
                 </span>
                 <span className="rank-score">
-                  Avg: {agg.average_rank.toFixed(2)}
+                  平均: {agg.average_rank.toFixed(2)}
                 </span>
                 <span className="rank-count">
-                  ({agg.rankings_count} votes)
+                  （{agg.rankings_count} 票）
                 </span>
               </div>
             ))}

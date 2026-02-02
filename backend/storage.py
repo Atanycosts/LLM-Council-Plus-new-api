@@ -124,7 +124,7 @@ def get_conversation_path(conversation_id: str) -> str:
     """
     # Validate UUID format to prevent path traversal
     if not validate_conversation_id(conversation_id):
-        raise ValueError(f"Invalid conversation ID format: {conversation_id}")
+        raise ValueError(f"对话 ID 格式无效: {conversation_id}")
 
     path = os.path.join(DATA_DIR, f"{conversation_id}.json")
 
@@ -132,7 +132,7 @@ def get_conversation_path(conversation_id: str) -> str:
     real_path = os.path.realpath(path)
     real_data_dir = os.path.realpath(DATA_DIR)
     if not real_path.startswith(real_data_dir + os.sep):
-        raise ValueError(f"Path traversal detected: {conversation_id}")
+        raise ValueError(f"检测到路径穿越: {conversation_id}")
 
     return path
 
@@ -484,7 +484,7 @@ def add_user_message(conversation_id: str, content: str):
     """
     conversation = get_conversation(conversation_id)
     if conversation is None:
-        raise ValueError(f"Conversation {conversation_id} not found")
+        raise ValueError(f"未找到对话 {conversation_id}")
 
     conversation["messages"].append({
         "role": "user",
@@ -515,7 +515,7 @@ def add_assistant_message(
     """
     conversation = get_conversation(conversation_id)
     if conversation is None:
-        raise ValueError(f"Conversation {conversation_id} not found")
+        raise ValueError(f"未找到对话 {conversation_id}")
 
     message = {
         "role": "assistant",
@@ -545,7 +545,7 @@ def update_conversation_title(conversation_id: str, title: str):
     """
     conversation = get_conversation(conversation_id)
     if conversation is None:
-        raise ValueError(f"Conversation {conversation_id} not found")
+        raise ValueError(f"未找到对话 {conversation_id}")
 
     conversation["title"] = title
     save_conversation(conversation)

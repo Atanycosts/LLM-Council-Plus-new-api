@@ -26,7 +26,7 @@ RouterType = str
 def _normalize_router_type(router_type: Optional[str]) -> str:
     rt = (router_type or config.ROUTER_TYPE or "openrouter").lower()
     if rt not in {"openrouter", "ollama"}:
-        raise ValueError(f"Invalid router_type: {router_type}")
+        raise ValueError(f"router_type 无效: {router_type}")
     return rt
 
 

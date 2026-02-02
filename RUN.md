@@ -1,357 +1,355 @@
-# How to Run LLM Council
+﻿# 如何运行 LLM Council
 
-Quick start guide to get LLM Council running on your machine.
-
----
-
-## Prerequisites
-
-### Required:
-- **Python 3.10+** ([Download](https://python.org))
-- **Node.js 18+** ([Download](https://nodejs.org))
-- **uv** - Python package manager ([Install](https://docs.astral.sh/uv/))
-
-### Optional (for database):
-- **PostgreSQL 12+** (if using PostgreSQL storage)
-- **MySQL 8+** (if using MySQL storage)
+本指南用于快速在本地运行 LLM Council。
 
 ---
 
-## Quick Start (5 minutes)
+## 前置条件
 
-### 1. Get OpenRouter API Key
-1. Go to [https://openrouter.ai](https://openrouter.ai)
-2. Sign up for a free account
-3. Generate API key
-4. Add credits ($5 recommended for testing)
+### 必需：
+- **Python 3.10+**（[下载](https://python.org)）
+- **Node.js 18+**（[下载](https://nodejs.org)）
+- **uv** - Python 包管理器（[安装](https://docs.astral.sh/uv/)）
 
-### 2. Clone & Setup
+### 可选（数据库）：
+- **PostgreSQL 12+**（使用 PostgreSQL 存储时）
+- **MySQL 8+**（使用 MySQL 存储时）
+
+---
+
+## 快速开始（约 5 分钟）
+
+### 1. 准备 New API 地址与 Key
+- 准备 OpenAI 兼容的 API 地址（`chat/completions` 端点）
+- 准备对应的 API Key
+
+### 2. 克隆并安装依赖
 ```bash
-# Clone repository
+# 克隆仓库
 git clone <your-repo-url>
 cd llm-council
 
-# Install backend dependencies
+# 安装后端依赖
 uv sync
 
-# Install frontend dependencies
+# 安装前端依赖
 cd frontend
 npm install
 cd ..
 ```
 
-### 3. Configure Environment
+### 3. 配置环境变量
 ```bash
-# Copy example environment file
+# 复制环境变量示例文件
 cp .env.example .env
 
-# Edit .env and add your OpenRouter API key
-nano .env  # or use any text editor
+# 编辑 .env 并填写 API 地址与 Key
+nano .env  # 或使用任意文本编辑器
 ```
 
-**Required in `.env`:**
+**.env 中必填：**
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-your-key-here
+OPENROUTER_API_URL=http://host:3000/v1/chat/completions
+OPENROUTER_API_KEY=sk-your-key-here
 ```
 
-### 4. Run the Application
+### 4. 启动服务
 
-**Option A: Two Terminals (Recommended)**
+**方案 A：两个终端（推荐）**
 
-Terminal 1 - Backend:
+终端 1（后端）：
 ```bash
 uv run python -m backend.main
 ```
 
-Terminal 2 - Frontend:
+终端 2（前端）：
 ```bash
 cd frontend
 npm run dev
 ```
 
-**Option B: Background Processes**
+**方案 B：后台进程**
 ```bash
-# Start backend in background
+# 后端后台启动
 uv run python -m backend.main &
 
-# Start frontend
+# 启动前端
 cd frontend
 npm run dev
 ```
 
-### 5. Open Application
-Open your browser to: **http://localhost:5173**
+### 5. 打开应用
+- 开发模式访问：**http://localhost:5173**
+- Docker 模式访问：**http://localhost:8088**
 
 ---
 
-## Configuration Options
+## 配置选项
 
-### Storage Backend
+### 存储方式
 
-**JSON (Default - Zero Setup):**
+**JSON（默认，零配置）：**
 ```bash
 DATABASE_TYPE=json
 ```
 
-**PostgreSQL:**
+**PostgreSQL：**
 ```bash
 DATABASE_TYPE=postgresql
 POSTGRESQL_URL=postgresql+psycopg2://user:password@localhost:5432/llmcouncil
 ```
 
-**MySQL:**
+**MySQL：**
 ```bash
 DATABASE_TYPE=mysql
 MYSQL_URL=mysql+pymysql://user:password@localhost:3306/llmcouncil
 ```
 
-### Feature Flags
+### 功能开关
 
-**Feature 4: Tools & Memory**
+**功能 4：工具与记忆系统**
 ```bash
-# All free tools enabled by default
-# (Calculator, Wikipedia, ArXiv, DuckDuckGo, Yahoo Finance)
+# 免费工具默认启用
+#（计算器、Wikipedia、ArXiv、DuckDuckGo、Yahoo Finance）
 
-# Optional: Paid tools
+# 可选：付费搜索工具
 ENABLE_TAVILY=false
 TAVILY_API_KEY=
 
-# Memory system (free local embeddings)
+# 记忆系统（本地向量）
 ENABLE_MEMORY=true
 
-# Optional: Better embeddings
+# 可选：更高质量 Embeddings
 ENABLE_OPENAI_EMBEDDINGS=false
 OPENAI_API_KEY=
 
-# Advanced: LangGraph workflows
+# 高级：LangGraph 工作流
 ENABLE_LANGGRAPH=false
 ```
 
 ---
 
-## Detailed Setup
+## 详细配置
 
-### Database Setup (Optional)
+### 数据库（可选）
 
-If using PostgreSQL or MySQL instead of JSON:
+若使用 PostgreSQL 或 MySQL：
 
-**PostgreSQL:**
+**PostgreSQL：**
 ```bash
-# Install PostgreSQL
+# 安装 PostgreSQL
 brew install postgresql  # macOS
-# or apt-get install postgresql  # Linux
+# 或 apt-get install postgresql  # Linux
 
-# Start PostgreSQL
+# 启动 PostgreSQL
 brew services start postgresql
 
-# Create database
+# 创建数据库
 createdb llmcouncil
 
-# Update .env
+# 更新 .env
 DATABASE_TYPE=postgresql
 POSTGRESQL_URL=postgresql+psycopg2://your_user:your_password@localhost:5432/llmcouncil
 ```
 
-**MySQL:**
+**MySQL：**
 ```bash
-# Install MySQL
+# 安装 MySQL
 brew install mysql  # macOS
-# or apt-get install mysql-server  # Linux
+# 或 apt-get install mysql-server  # Linux
 
-# Start MySQL
+# 启动 MySQL
 brew services start mysql
 
-# Create database
+# 创建数据库
 mysql -u root -p
 CREATE DATABASE llmcouncil;
 exit;
 
-# Update .env
+# 更新 .env
 DATABASE_TYPE=mysql
 MYSQL_URL=mysql+pymysql://root:your_password@localhost:3306/llmcouncil
 ```
 
-**Auto Initialization:**
-- Tables are created automatically on first run
-- No manual schema setup needed
+**自动初始化：**
+- 首次运行会自动创建表
+- 无需手动建表
 
 ---
 
-## Development Mode
+## 开发模式
 
-### Backend Development
+### 后端开发
 ```bash
-# Run with auto-reload
+# 启用热更新
 uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-### Frontend Development
+### 前端开发
 ```bash
 cd frontend
 npm run dev
-# Vite auto-reloads on file changes
 ```
 
-### View Logs
+### 查看日志
 ```bash
-# Backend logs
+# 后端日志
 uv run python -m backend.main 2>&1 | tee backend.log
 
-# Check logs
+# 实时查看
 tail -f backend.log
 ```
 
 ---
 
-## Testing
+## 测试
 
-### Test Backend API
+### 测试后端 API
 ```bash
-# Health check
+# 健康检查
 curl http://localhost:8001/
 
-# List conversations
+# 列出对话
 curl http://localhost:8001/api/conversations
 
-# Create conversation
+# 创建对话
 curl -X POST http://localhost:8001/api/conversations \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
 
-### Test Frontend
-1. Open http://localhost:5173
-2. Click "+ New Conversation"
-3. Type a question
-4. Watch 3-stage council process
-5. See final answer
+### 测试前端
+1. 打开 http://localhost:5173
+2. 点击“新建对话”
+3. 输入问题
+4. 观察三阶段流程
+5. 查看最终答复
 
-### Test Features
+### 测试功能
 
-**Test Delete:**
-1. Hover over conversation → click ⋮
-2. Click "Delete"
-3. Confirm
+**删除：**
+1. 鼠标悬停对话 → 点击菜单
+2. 选择“删除”
+3. 确认
 
-**Test Edit Title:**
-1. Hover over conversation → click ⋮
-2. Click "Edit title"
-3. Type new title → press Enter
+**编辑标题：**
+1. 鼠标悬停对话 → 点击菜单
+2. 选择“编辑标题”
+3. 输入新标题并回车
 
-**Test Tools:**
-- Ask: "What's the price of AAPL stock?"
-- Ask: "Calculate 12345 * 67890"
-- Ask: "Search for latest AI news"
+**工具调用：**
+- 提问：“AAPL 股价是多少？”
+- 提问：“计算 12345 * 67890”
+- 提问：“搜索最新 AI 新闻”
 
 ---
 
-## Troubleshooting
+## 故障排查
 
-### Port Already in Use
+### 端口被占用
 ```bash
-# Kill process on port 8001 (backend)
+# 结束占用 8001 端口的进程（后端）
 lsof -ti:8001 | xargs kill -9
 
-# Kill process on port 5173 (frontend)
+# 结束占用 5173 端口的进程（前端）
 lsof -ti:5173 | xargs kill -9
 ```
 
-### Backend Won't Start
+### 后端无法启动
 ```bash
-# Check Python version
-python --version  # Must be 3.10+
+# 检查 Python 版本
+python --version  # 必须 >= 3.10
 
-# Reinstall dependencies
+# 重新安装依赖
 rm -rf .venv
 uv sync
 ```
 
-### Frontend Won't Start
+### 前端无法启动
 ```bash
-# Check Node version
-node --version  # Must be 18+
+# 检查 Node 版本
+node --version  # 必须 >= 18
 
-# Reinstall dependencies
+# 重新安装依赖
 cd frontend
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-### Database Connection Error
+### 数据库连接错误
 ```bash
-# Check database is running
+# 检查数据库是否运行
 psql -l  # PostgreSQL
 mysql -u root -p  # MySQL
 
-# Verify connection string in .env
-# Format: protocol://user:password@host:port/database
+# 校验 .env 连接串
+# 格式: protocol://user:password@host:port/database
 ```
 
-### API Key Issues
+### API Key 问题
 ```bash
-# Verify API key in .env
-cat .env | grep OPENROUTER_API_KEY
+# 检查 .env
+cat .env | grep OPENROUTER_API_
 
-# Test API key manually
-curl https://openrouter.ai/api/v1/models \
+# 手动验证 API Key（示例）
+curl http://host:3000/v1/models \
   -H "Authorization: Bearer YOUR_KEY_HERE"
 ```
 
-### Memory/Tools Not Working
+### 记忆/工具不可用
 ```bash
-# Check dependencies installed
+# 检查依赖安装情况
 uv pip list | grep -E "langchain|chromadb|sentence-transformers"
 
-# Reinstall if missing
+# 缺失则重新安装
 uv sync
 ```
 
 ---
 
-## Production Deployment
+## 生产部署
 
-### Environment Setup
+### 环境变量示例
 ```bash
-# Use production API keys
+# 使用生产 API Key 与地址
+OPENROUTER_API_URL=http://host:3000/v1/chat/completions
 OPENROUTER_API_KEY=your-production-key
 
-# Use database (not JSON)
+# 启用数据库
 DATABASE_TYPE=postgresql
 POSTGRESQL_URL=your-production-db-url
 
-# Security
-SECRET_KEY=your-secret-key  # Add if implementing auth
+# 安全配置
+SECRET_KEY=your-secret-key  # 如需自定义认证
 ```
 
-### Build Frontend
+### 构建前端
 ```bash
 cd frontend
 npm run build
-# Serves from dist/ folder
 ```
 
-### Run Production Backend
+### 运行后端
 ```bash
-# Use production ASGI server
 pip install gunicorn
 gunicorn backend.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
 ```
 
-### Serve Frontend
+### 前端静态服务
 ```bash
-# Option 1: Nginx
-# Configure nginx to serve frontend/dist/
+# 方案 1：Nginx
+# 配置 Nginx 指向 frontend/dist
 
-# Option 2: Node static server
+# 方案 2：Node 静态服务
 npm install -g serve
 serve -s frontend/dist -l 5173
 ```
 
 ---
 
-## Docker Deployment (Optional)
+## Docker 部署（可选）
 
-### Backend Dockerfile
+### 后端 Dockerfile
 ```dockerfile
 FROM python:3.10
 WORKDIR /app
@@ -361,7 +359,7 @@ CMD ["uv", "run", "python", "-m", "backend.main"]
 EXPOSE 8001
 ```
 
-### Frontend Dockerfile
+### 前端 Dockerfile
 ```dockerfile
 FROM node:18
 WORKDIR /app
@@ -405,115 +403,84 @@ volumes:
   postgres_data:
 ```
 
-Run:
+运行：
 ```bash
 docker-compose up -d
 ```
 
 ---
 
-## Performance Tips
+## 性能建议
 
-### Backend:
-- Use PostgreSQL/MySQL instead of JSON for better performance
-- Enable database connection pooling
-- Use Redis for caching (future feature)
-- Set `ENABLE_MEMORY=false` if not needed
+### 后端：
+- 使用 PostgreSQL/MySQL 替代 JSON
+- 启用数据库连接池
+- 视需要启用缓存（可选）
+- 不使用记忆功能可设置 `ENABLE_MEMORY=false`
 
-### Frontend:
-- Build for production: `npm run build`
-- Enable gzip compression
-- Use CDN for static assets
-- Implement lazy loading
+### 前端：
+- 生产环境使用 `npm run build`
+- 启用 gzip 压缩
+- 静态资源可接入 CDN
+- 可逐步引入懒加载优化
 
 ---
 
-## Monitoring
+## 监控
 
-### Check System Status
+### 系统状态
 ```bash
-# Backend health
+# 后端健康检查
 curl http://localhost:8001/
 
-# Database connections
+# 数据库连接
 # PostgreSQL: SELECT * FROM pg_stat_activity;
 # MySQL: SHOW PROCESSLIST;
 ```
 
-### View Storage Info
+### 存储信息
 ```bash
-# JSON mode
+# JSON 模式
 ls -lh data/conversations/
 
-# Database mode
-# Check via psql/mysql CLI
+# 数据库模式
+# 使用 psql/mysql 客户端查看
 ```
 
-### Monitor API Usage
-- Check OpenRouter dashboard for usage
-- Monitor token consumption
-- Track TOON savings
+### API 使用监控
+- 在你的 API 平台控制台查看用量
+- 监控 Token 消耗
+- 跟踪 TOON 节省比例
 
 ---
 
-## Support
-
-### Common Commands Reference
-```bash
-# Start backend
-uv run python -m backend.main
-
-# Start frontend
-cd frontend && npm run dev
-
-# View logs
-tail -f backend.log
-
-# Reset database (PostgreSQL)
-dropdb llmcouncil && createdb llmcouncil
-
-# Clear conversations (JSON mode)
-rm -rf data/conversations/*
-
-# Update dependencies
-uv sync && cd frontend && npm install
-```
-
-### Get Help
-- Check documentation in `contributions/` folder
-- Review `.env.example` for configuration options
-- Open issue on GitHub
-
----
-
-## Quick Commands Summary
+## 常用命令汇总
 
 ```bash
-# 🚀 QUICK START (Copy-paste these 5 commands)
-uv sync                                    # Install backend
-cd frontend && npm install && cd ..        # Install frontend
-cp .env.example .env                       # Create config
-# Edit .env and add OPENROUTER_API_KEY
-uv run python -m backend.main &            # Start backend
-cd frontend && npm run dev                 # Start frontend (opens browser)
+uv sync                                    # 安装后端依赖
+cd frontend && npm install && cd ..        # 安装前端依赖
+cp .env.example .env                       # 生成配置文件
+# 编辑 .env 并填写 OPENROUTER_API_URL / OPENROUTER_API_KEY
+uv run python -m backend.main &            # 启动后端
+cd frontend && npm run dev                 # 启动前端（开发模式）
 ```
 
-**Access:** http://localhost:5173
+访问地址：**http://localhost:5173**
 
 ---
 
-## System Requirements
+## 系统要求
 
-**Minimum:**
-- 2 CPU cores
-- 4GB RAM
-- 2GB disk space
+**最低配置：**
+- 2 核 CPU
+- 4GB 内存
+- 2GB 磁盘
 
-**Recommended:**
-- 4+ CPU cores
-- 8GB+ RAM
-- 10GB disk space (for database)
+**推荐配置：**
+- 4 核以上 CPU
+- 8GB 以上内存
+- 10GB 磁盘（数据库模式）
 
-**Platform:**
-- macOS, Linux, Windows (WSL2)
-- Docker (optional)
+**平台：**
+- macOS / Linux / Windows（WSL2）
+- Docker（可选）

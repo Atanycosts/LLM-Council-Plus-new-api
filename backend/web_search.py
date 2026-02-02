@@ -79,14 +79,14 @@ async def _search_duckduckgo(
     start = time.time()
     results_raw: List[Dict[str, Any]] = await asyncio.to_thread(_run_ddgs)
     if not results_raw:
-        return "No web search results found."
+        return "未找到网页搜索结果。"
 
     normalized = []
     urls_to_fetch: List[tuple[int, str]] = []
     for idx, r in enumerate(results_raw[:max_results], 1):
-        title = r.get("title") or "No Title"
+        title = r.get("title") or "无标题"
         url = r.get("url") or r.get("href") or ""
-        summary = r.get("body") or r.get("excerpt") or "No description available."
+        summary = r.get("body") or r.get("excerpt") or "暂无描述。"
         normalized.append(
             {
                 "index": idx,
@@ -109,19 +109,18 @@ async def _search_duckduckgo(
         if content:
             if len(content) < 500:
                 content += (
-                    "\n\n[System Note: Full content fetch yielded limited text. "
-                    "Appending original summary.]\n"
-                    f"Original Summary: {normalized[idx0]['summary']}"
+                    "\n\n[系统提示：完整内容获取较少，已追加原始摘要。]\n"
+                    f"原始摘要: {normalized[idx0]['summary']}"
                 )
             normalized[idx0]["content"] = content
 
     formatted = []
     for r in normalized:
-        text = f"Result {r['index']}:\nTitle: {r['title']}\nURL: {r['url']}"
+        text = f"结果 {r['index']}:\n标题: {r['title']}\nURL: {r['url']}"
         if r["content"]:
-            text += f"\nContent:\n{_truncate(r['content'], 2000)}"
+            text += f"\n内容:\n{_truncate(r['content'], 2000)}"
         else:
-            text += f"\nSummary: {_truncate(r['summary'], 800)}"
+            text += f"\n摘要: {_truncate(r['summary'], 800)}"
         formatted.append(text)
     return "\n\n".join(formatted)
 
@@ -135,7 +134,7 @@ async def _search_brave(
     """Brave Search API. Requires ENABLE_BRAVE=true and BRAVE_API_KEY."""
     api_key = (config.BRAVE_API_KEY or "").strip()
     if not (config.ENABLE_BRAVE and api_key):
-        return "[System Note: Brave search is not configured. Set ENABLE_BRAVE=true and BRAVE_API_KEY.]"
+        return "[系统提示：Brave 搜索未配置。请设置 ENABLE_BRAVE=true 并提供 BRAVE_API_KEY。]"
 
     start = time.time()
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -146,19 +145,19 @@ async def _search_brave(
         )
     if resp.status_code != 200:
         logger.warning("[WEB_SEARCH] Brave returned %s: %s", resp.status_code, resp.text[:300])
-        return "[System Note: Brave search failed. Please check your API key.]"
+        return "[系统提示：Brave 搜索失败，请检查 API Key。]"
 
     data = resp.json()
     web_results = (data.get("web") or {}).get("results") or []
     if not web_results:
-        return "No web search results found."
+        return "未找到网页搜索结果。"
 
     normalized = []
     urls_to_fetch: List[tuple[int, str]] = []
     for idx, r in enumerate(web_results[:max_results], 1):
-        title = r.get("title") or "No Title"
+        title = r.get("title") or "无标题"
         url = r.get("url") or ""
-        summary = r.get("description") or "No description available."
+        summary = r.get("description") or "暂无描述。"
         extra = r.get("extra_snippets") or []
         if extra:
             summary += "\n" + "\n".join(extra[:2])
@@ -183,19 +182,18 @@ async def _search_brave(
         if content:
             if len(content) < 500:
                 content += (
-                    "\n\n[System Note: Full content fetch yielded limited text. "
-                    "Appending original summary.]\n"
-                    f"Original Summary: {normalized[idx0]['summary']}"
+                    "\n\n[系统提示：完整内容获取较少，已追加原始摘要。]\n"
+                    f"原始摘要: {normalized[idx0]['summary']}"
                 )
             normalized[idx0]["content"] = content
 
     formatted = []
     for r in normalized:
-        text = f"Result {r['index']}:\nTitle: {r['title']}\nURL: {r['url']}"
+        text = f"结果 {r['index']}:\n标题: {r['title']}\nURL: {r['url']}"
         if r["content"]:
-            text += f"\nContent:\n{_truncate(r['content'], 2000)}"
+            text += f"\n内容:\n{_truncate(r['content'], 2000)}"
         else:
-            text += f"\nSummary: {_truncate(r['summary'], 800)}"
+            text += f"\n摘要: {_truncate(r['summary'], 800)}"
         formatted.append(text)
     return "\n\n".join(formatted)
 
@@ -219,11 +217,11 @@ async def perform_web_search(
     p = (provider or "").strip().lower()
     if p == WebSearchProvider.DUCKDUCKGO.value:
         if not duckduckgo_available():
-            return "[System Note: DuckDuckGo search is unavailable (missing ddgs dependency).]"
+            return "[系统提示：DuckDuckGo 搜索不可用（缺少 ddgs 依赖）。]"
         return await _search_duckduckgo(query, max_results=max_results, full_content_results=full_content_results)
     if p == WebSearchProvider.BRAVE.value:
         return await _search_brave(query, max_results=max_results, full_content_results=full_content_results)
     if p in (WebSearchProvider.TAVILY.value, WebSearchProvider.EXA.value):
-        raise ValueError("tavily/exa are handled via existing tools layer")
-    raise ValueError(f"Unknown web search provider: {provider}")
+        raise ValueError("tavily/exa 由现有工具层处理")
+    raise ValueError(f"未知的网页搜索提供方: {provider}")
 

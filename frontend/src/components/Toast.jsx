@@ -3,8 +3,8 @@ import PropTypes from 'prop-types';
 import './Toast.css';
 
 /**
- * Toast notification component for displaying temporary messages.
- * Supports multiple toast types: info, success, warning, error.
+ * Toast 提示组件，用于展示临时消息。
+ * 支持多种类型：info / success / warning / error。
  */
 export default function Toast({ message, type, duration, onClose }) {
   const [isVisible, setIsVisible] = useState(true);
@@ -15,7 +15,7 @@ export default function Toast({ message, type, duration, onClose }) {
     setTimeout(() => {
       setIsVisible(false);
       onClose?.();
-    }, 300); // Match CSS animation duration
+    }, 300); // 与 CSS 动画时长保持一致
   }, [onClose]);
 
   useEffect(() => {
@@ -28,10 +28,10 @@ export default function Toast({ message, type, duration, onClose }) {
   if (!isVisible) return null;
 
   const icons = {
-    info: '💡',
+    info: 'i',
     success: '✓',
-    warning: '⚠',
-    error: '✕',
+    warning: '!',
+    error: '×',
   };
 
   return (
@@ -57,7 +57,7 @@ Toast.defaultProps = {
 };
 
 /**
- * Toast container component that manages multiple toasts.
+ * Toast 容器组件，负责管理多个提示实例。
  */
 export function ToastContainer({ toasts, onRemove }) {
   return (

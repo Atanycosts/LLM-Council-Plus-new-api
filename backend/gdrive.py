@@ -42,18 +42,18 @@ def get_drive_service():
         return _drive_service
 
     if not GOOGLE_DRIVE_ENABLED:
-        raise ValueError("Google Drive is not configured. Set GOOGLE_DRIVE_FOLDER_ID in .env")
+        raise ValueError("Google Drive 未配置。请在 .env 中设置 GOOGLE_DRIVE_FOLDER_ID。")
 
     if service_account is None or build is None or MediaIoBaseUpload is None:
         raise ImportError(
-            "Google Drive dependencies are not installed. "
-            "Install 'google-api-python-client' and 'google-auth' to enable Drive uploads."
+            "未安装 Google Drive 依赖。"
+            "请安装 'google-api-python-client' 与 'google-auth' 以启用上传。"
         )
 
     if not os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE):
         raise FileNotFoundError(
-            f"Service account file not found: {GOOGLE_SERVICE_ACCOUNT_FILE}. "
-            "Please download it from Google Cloud Console."
+            f"未找到服务账号文件: {GOOGLE_SERVICE_ACCOUNT_FILE}。"
+            "请从 Google Cloud Console 下载后放置到该路径。"
         )
 
     credentials = service_account.Credentials.from_service_account_file(
@@ -84,7 +84,7 @@ def upload_to_drive(
         Dict with file info including id, name, and webViewLink
     """
     if not GOOGLE_DRIVE_ENABLED:
-        raise ValueError("Google Drive is not configured")
+        raise ValueError("Google Drive 未配置")
 
     service = get_drive_service()
     target_folder = folder_id or GOOGLE_DRIVE_FOLDER_ID

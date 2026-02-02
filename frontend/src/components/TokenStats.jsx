@@ -47,39 +47,39 @@ const TokenStats = memo(function TokenStats({ tokenStats }) {
           <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
         </svg>
         <span className="token-text">
-          Saved {savedPercent.toFixed(0)}% tokens ({formatNumber(jsonTokens)} → {formatNumber(toonTokens)})
+          节省 {savedPercent.toFixed(0)}% token（{formatNumber(jsonTokens)} → {formatNumber(toonTokens)}）
         </span>
       </div>
 
       {showTooltip && (
         <div className="token-stats-tooltip">
-          <div className="tooltip-header">TOON Token Savings</div>
+          <div className="tooltip-header">TOON Token 节省</div>
           <div className="tooltip-content">
             <div className="tooltip-row">
-              <span className="tooltip-label">Total:</span>
+              <span className="tooltip-label">总计:</span>
               <span className="tooltip-value">{jsonTokens.toLocaleString()} → {toonTokens.toLocaleString()} ({savedPercent.toFixed(1)}%)</span>
             </div>
             {stage1 && stage1.json_tokens > 0 && (
               <div className="tooltip-row">
-                <span className="tooltip-label">Stage 1 (History):</span>
+                <span className="tooltip-label">阶段 1（历史）:</span>
                 <span className="tooltip-value">{stage1.json_tokens.toLocaleString()} → {stage1.toon_tokens.toLocaleString()} ({stage1.saved_percent.toFixed(1)}%)</span>
               </div>
             )}
             {stage2 && stage2.json_tokens > 0 && (
               <div className="tooltip-row">
-                <span className="tooltip-label">Stage 2 (Responses):</span>
+                <span className="tooltip-label">阶段 2（回答）:</span>
                 <span className="tooltip-value">{stage2.json_tokens.toLocaleString()} → {stage2.toon_tokens.toLocaleString()} ({stage2.saved_percent.toFixed(1)}%)</span>
               </div>
             )}
             {stage3 && stage3.json_tokens > 0 && (
               <div className="tooltip-row">
-                <span className="tooltip-label">Stage 3 (Rankings):</span>
+                <span className="tooltip-label">阶段 3（排序）:</span>
                 <span className="tooltip-value">{stage3.json_tokens.toLocaleString()} → {stage3.toon_tokens.toLocaleString()} ({stage3.saved_percent.toFixed(1)}%)</span>
               </div>
             )}
           </div>
           <div className="tooltip-footer">
-            TOON format reduces token usage vs JSON
+            TOON 格式相比 JSON 可减少 token 使用量
           </div>
         </div>
       )}

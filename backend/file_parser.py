@@ -143,7 +143,7 @@ def parse_file(filename: str, file_content: bytes) -> Tuple[str, str]:
     elif filename_lower.endswith('.md'):
         return parse_md(file_content), 'md'
     else:
-        raise ValueError(f"Unsupported file type: {filename}")
+        raise ValueError(f"不支持的文件类型: {filename}")
 
 
 def get_supported_extensions() -> list:

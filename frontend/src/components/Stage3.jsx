@@ -15,22 +15,22 @@ const Stage3 = memo(function Stage3({ finalResponse, timings }) {
       {timings && (timings.start || timings.end) && (
         <div className="stage-timing-top-right">
           {timings.start && (
-            <span className="timing-start">Started: {formatTimestamp(timings.start)}</span>
+            <span className="timing-start">开始: {formatTimestamp(timings.start)}</span>
           )}
           {timings.end && (
-            <span className="timing-end">Ended: {formatTimestamp(timings.end)}</span>
+            <span className="timing-end">结束: {formatTimestamp(timings.end)}</span>
           )}
           {timings.duration !== null && timings.duration !== undefined && (
-            <span className="timing-duration">Elapsed: {formatDuration(timings.duration)}</span>
+            <span className="timing-duration">耗时: {formatDuration(timings.duration)}</span>
           )}
         </div>
       )}
       <div className="stage-header">
-        <h3 className="stage-title">Stage 3: Final Council Answer</h3>
+        <h3 className="stage-title">阶段 3：最终综合回答</h3>
       </div>
       <div className="final-response">
         <div className="chairman-label">
-          Chairman: {finalResponse.model.split('/')[1] || finalResponse.model}
+          主席：{finalResponse.model.split('/')[1] || finalResponse.model}
         </div>
         <div className="final-text markdown-content">
           <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml>{finalResponse.response}</ReactMarkdown>

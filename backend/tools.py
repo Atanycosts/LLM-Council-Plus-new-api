@@ -99,7 +99,7 @@ def calculator_tool() -> Tool:
         if isinstance(node, ast.Constant):  # Python 3.8+
             if isinstance(node.value, (int, float, complex)):
                 return node.value
-            raise ValueError(f"Unsupported constant type: {type(node.value)}")
+            raise ValueError(f"不支持的常量类型: {type(node.value)}")
 
         elif isinstance(node, ast.Num):  # Python 3.7 compatibility
             return node.n
@@ -107,7 +107,7 @@ def calculator_tool() -> Tool:
         elif isinstance(node, ast.BinOp):
             op_type = type(node.op)
             if op_type not in _OPERATORS:
-                raise ValueError(f"Unsupported operator: {op_type.__name__}")
+                raise ValueError(f"不支持的运算符: {op_type.__name__}")
             left = _safe_eval_node(node.left)
             right = _safe_eval_node(node.right)
             return _OPERATORS[op_type](left, right)
@@ -115,7 +115,7 @@ def calculator_tool() -> Tool:
         elif isinstance(node, ast.UnaryOp):
             op_type = type(node.op)
             if op_type not in _OPERATORS:
-                raise ValueError(f"Unsupported unary operator: {op_type.__name__}")
+                raise ValueError(f"不支持的一元运算符: {op_type.__name__}")
             operand = _safe_eval_node(node.operand)
             return _OPERATORS[op_type](operand)
 
@@ -123,11 +123,11 @@ def calculator_tool() -> Tool:
             if isinstance(node.func, ast.Name):
                 func_name = node.func.id
                 if func_name not in _MATH_FUNCS:
-                    raise ValueError(f"Unsupported function: {func_name}")
+                    raise ValueError(f"不支持的函数: {func_name}")
                 func = _MATH_FUNCS[func_name]
                 args = [_safe_eval_node(arg) for arg in node.args]
                 return func(*args)
-            raise ValueError("Only direct function calls are supported")
+            raise ValueError("仅支持直接函数调用")
 
         elif isinstance(node, ast.Name):
             # Allow math constants
@@ -135,7 +135,7 @@ def calculator_tool() -> Tool:
                 val = _MATH_FUNCS[node.id]
                 if isinstance(val, (int, float)):
                     return val
-            raise ValueError(f"Unsupported variable: {node.id}")
+            raise ValueError(f"不支持的变量: {node.id}")
 
         elif isinstance(node, ast.List):
             return [_safe_eval_node(elem) for elem in node.elts]
@@ -147,7 +147,7 @@ def calculator_tool() -> Tool:
             return _safe_eval_node(node.body)
 
         else:
-            raise ValueError(f"Unsupported expression type: {type(node).__name__}")
+            raise ValueError(f"不支持的表达式类型: {type(node).__name__}")
 
     def safe_calculate(expr: str) -> str:
         """Safely evaluate a mathematical expression."""
@@ -158,18 +158,18 @@ def calculator_tool() -> Tool:
             result = _safe_eval_node(tree)
             return str(result)
         except SyntaxError as e:
-            return f"Syntax error: {e}"
+            return f"语法错误: {e}"
         except ValueError as e:
-            return f"Error: {e}"
+            return f"错误: {e}"
         except ZeroDivisionError:
-            return "Error: Division by zero"
+            return "错误: 除零"
         except Exception as e:
-            return f"Error: {e}"
+            return f"错误: {e}"
 
     return Tool(
         name="calculator",
         func=safe_calculate,
-        description="Safe calculator for mathematical expressions (e.g., '2+2', 'sqrt(16)', 'sum([1,2,3])').",
+        description="安全的数学计算器（例如 '2+2'、'sqrt(16)'、'sum([1,2,3])'）。",
     )
 
 
@@ -182,7 +182,7 @@ def wikipedia_tool() -> Tool:
     return Tool(
         name="wikipedia",
         func=wikipedia.run,
-        description="Search Wikipedia for factual information (e.g., 'Tell me about Python programming').",
+        description="在 Wikipedia 中检索事实信息（例如 'Python 编程简介'）。",
     )
 
 
@@ -195,7 +195,7 @@ def arxiv_tool() -> Tool:
     return Tool(
         name="arxiv",
         func=arxiv.run,
-        description="Search ArXiv for research papers (e.g., 'papers about large language models').",
+        description="在 ArXiv 中检索论文（例如 '大型语言模型 论文'）。",
     )
 
 
@@ -217,7 +217,7 @@ def duckduckgo_tool() -> Tool:
     return Tool(
         name="web_search",
         func=search.run,
-        description="General web search for news/current info (e.g., 'latest AI news').",
+        description="通用网页搜索（例如 '最新 AI 新闻'）。",
     )
 
 
@@ -230,7 +230,7 @@ def yahoo_finance_tool() -> Tool:
     def get_stock_price(ticker: str) -> str:
         symbol = (ticker or "").strip().split()[0].upper()
         if not symbol:
-            return "Error: missing ticker symbol"
+            return "错误: 缺少股票代码"
 
         try:
             stock = yf.Ticker(ticker)
@@ -256,19 +256,19 @@ def yahoo_finance_tool() -> Tool:
 
             return f"{symbol}: {price_str}"
         except Exception as exc:  # pragma: no cover
-            return f"Error fetching {ticker}: {exc}"
+            return f"获取 {ticker} 失败: {exc}"
 
     return Tool(
         name="stock_data",
         func=get_stock_price,
-        description="Get stock price/market cap via Yahoo Finance (e.g., 'AAPL').",
+        description="通过 Yahoo Finance 获取股价/市值（例如 'AAPL'）。",
     )
 
 
 def tavily_tool(api_key: str) -> Tool:
     """Tavily search (paid, requires key + flag)."""
     if TavilySearchResults is None:
-        raise RuntimeError("Tavily not installed; ensure langchain_community is available.")
+        raise RuntimeError("未安装 Tavily；请确认 langchain_community 已可用。")
 
     search = TavilySearchResults(
         api_key=api_key,
@@ -279,14 +279,14 @@ def tavily_tool(api_key: str) -> Tool:
     return Tool(
         name="tavily_search",
         func=search.invoke,
-        description="Advanced web search (paid) for richer current-event answers.",
+        description="高级网页搜索（付费），用于获取更丰富的实时信息。",
     )
 
 
 def exa_tool(api_key: str) -> Tool:
     """Exa AI search (paid, requires key + flag)."""
     if Exa is None:
-        raise RuntimeError("Exa not installed; run: pip install exa-py")
+        raise RuntimeError("未安装 Exa；请执行: pip install exa-py")
 
     logger.info("Initializing Exa client")
     exa_client = Exa(api_key=api_key)
@@ -319,17 +319,17 @@ def exa_tool(api_key: str) -> Tool:
 
             if not results:
                 logger.warning("[Exa] No results found")
-                return "No results found."
+                return "未找到结果。"
 
             return "\n\n---\n\n".join(results)
         except Exception as e:
             logger.error(f"[Exa] Search error: {str(e)}")
-            return f"Exa search error: {str(e)}"
+            return f"Exa 搜索错误: {str(e)}"
 
     return Tool(
         name="exa_search",
         func=exa_search,
-        description="AI-powered web search (Exa) for semantic understanding of queries.",
+        description="AI 驱动的 Exa 搜索，用于更精准的语义检索。",
     )
 
 

@@ -1,215 +1,206 @@
-# LLM Council Plus
+﻿# LLM Council Plus
 
 ![llmcouncil](header.jpg)
 
-> **Inspired by [Andrej Karpathy's LLM Council](https://github.com/karpathy/llm-council)** - see his [original tweet](https://x.com/karpathy/status/1992381094667411768) about the concept.
+> **灵感来源：[Andrej Karpathy 的 LLM Council](https://github.com/karpathy/llm-council)** - 可参考其关于该概念的 [原始推文](https://x.com/karpathy/status/1992381094667411768)。
 
-The idea of this repo is that instead of asking a question to your favorite LLM provider (e.g. OpenAI GPT 5.1, Google Gemini 3.0 Pro, Anthropic Claude Sonnet 4.5, xAI Grok 4, etc.), you can group them into your "LLM Council Plus". This is a containerized web app with a Setup Wizard that guides you through configuration. It uses OpenRouter to send your query to multiple LLMs, asks them to review and rank each other's work, and finally a Chairman LLM produces the final response.
+本项目将多个 LLM 组织为“委员会”，用于对同一问题进行多模型回答、互评与综合。它是一个容器化的 Web 应用，内置初始化向导用于配置，并通过 OpenAI 兼容 new-api 发送请求到多个模型。随后各模型对彼此的回答进行排序，最终由主席模型给出综合答复。
 
-In a bit more detail, here is what happens when you submit a query:
+当你提交问题时，流程如下：
 
-1. **Stage 1: First opinions**. The user query is given to all LLMs individually, and the responses are collected. The individual responses are shown in a "tab view", so that the user can inspect them all one by one.
-2. **Stage 2: Review**. Each individual LLM is given the responses of the other LLMs. Under the hood, the LLM identities are anonymized so that the LLM can't play favorites when judging their outputs. The LLM is asked to rank them in accuracy and insight.
-3. **Stage 3: Final response**. The designated Chairman of the LLM Council takes all of the model's responses and compiles them into a single final answer that is presented to the user.
+1. **阶段 1：模型回答**。将问题分别发送给多个模型，收集每个模型的回答，并以标签页形式展示。
+2. **阶段 2：互评排序**。每个模型基于其他模型的回答进行评审与排序；评审时使用匿名标签以避免偏好。
+3. **阶段 3：最终综合**。主席模型综合所有回答与互评结果，输出最终答复。
 
-## What's Different from the Original
+## 与原版的差异
 
-This fork extends [Andrej Karpathy's llm-council](https://github.com/karpathy/llm-council) with production-ready features:
+该分支在原版基础上补齐了更完整的生产级功能：
 
-| Feature | Original | LLM Council Plus |
-|---------|----------|------------------|
-| **Deployment** | Manual Python/npm setup | Docker Compose (one command) |
-| **Configuration** | Edit config.py manually | Visual Setup Wizard |
-| **Models** | 4 hardcoded models | Full OpenRouter catalog (100+ models) |
-| **Local Models** | ❌ | ✅ Ollama support |
-| **Authentication** | ❌ | ✅ JWT multi-user system |
-| **Storage** | JSON files only | JSON, PostgreSQL, MySQL |
-| **Token Optimization** | ❌ | ✅ TOON format (20-60% savings) |
-| **Web Search** | ❌ | ✅ DuckDuckGo + Tavily + Exa + Brave |
-| **File Attachments** | ❌ | ✅ PDF, TXT, MD, images |
-| **Tools** | ❌ | ✅ Calculator, Wikipedia, ArXiv, Yahoo Finance |
-| **Real-time Streaming** | Basic | SSE with heartbeats & state persistence |
-| **Error Handling** | Silent failures | Toast notifications + visual indicators |
-| **Hot Reload** | ❌ | ✅ Config changes without restart |
-| **Conversation Search** | ❌ | ✅ Filter by title with relative dates |
-| **Stage Timeouts** | ❌ | ✅ 90s stage-level timeout (first-N-complete) |
+| 功能 | 原版 | LLM Council Plus |
+|------|------|------------------|
+| **部署** | 手动 Python/npm 配置 | Docker Compose（一键启动） |
+| **配置** | 手动修改 config.py | 初始化向导可视化配置 |
+| **模型** | 固定 4 个模型 | 基于 New API 返回的模型目录 |
+| **本地模型** | 不支持 | 暂不支持 |
+| **认证** | 不支持 | 支持 JWT 多用户认证 |
+| **存储** | 仅 JSON 文件 | JSON / PostgreSQL / MySQL |
+| **Token 优化** | 不支持 | 支持 TOON 格式（节省 20-60%） |
+| **网页搜索** | 不支持 | DuckDuckGo + Tavily + Exa + Brave |
+| **文件附件** | 不支持 | PDF / TXT / MD / 图片 |
+| **工具** | 不支持 | 计算器、Wikipedia、ArXiv、Yahoo Finance |
+| **实时流式** | 基础 | SSE + 心跳 + 状态持久化 |
+| **错误处理** | 静默失败 | Toast 提示 + 可视化状态 |
+| **热更新** | 不支持 | 配置变更无需重启 |
+| **对话搜索** | 不支持 | 标题过滤 + 相对时间 |
+| **阶段超时** | 不支持 | 90 秒阶段级超时（优先完成） |
 
-### Recent Updates (v1.3.1)
+### 近期更新（v1.3.1）
 
-| New Feature | What it adds | Where |
+| 新功能 | 说明 | 位置 |
 |---|---|---|
-| **Per-conversation router** | Choose **OpenRouter** or **Ollama** per conversation (no fallback) | Model Selector → Router |
-| **Model presets + council sizing** | Built-in presets + saved presets, configurable council size, “I’m Feeling Lucky” | Model Selector |
-| **Runtime Settings panel** | Edit prompts + temperatures; **persist / reset / export / import** (no secrets) | Settings → Prompts/Temps/Backup |
-| **Stop / Abort streaming** | Cancel an in-flight request cleanly (frontend abort + backend task cancel) | Composer “Stop” |
-| **Web search provider selection** | DuckDuckGo (free) + Tavily + Exa + Brave, per-message selection | Composer search pill |
-| **Full-article fetch (optional)** | Fetch top-N pages via Jina Reader for richer context (DDG/Brave) | Settings → Web Search |
-| **Search context panel** | Compact view (title + domain) + expandable content per result | Assistant message UI |
-| **UI polish pass** | Dark dropdown menus, cleaner sidebar actions, compact composer layout | App UI |
+| **模型来源** | 固定为 **New API（OpenAI 兼容）** | 模型选择器 |
+| **模型预设 + 委员会规模** | 内置预设 + 自定义预设，委员会规模可配置，支持“随机推荐” | 模型选择器 |
+| **运行时设置** | 编辑提示词与温度；支持 **保存 / 重置 / 导出 / 导入**（不含密钥） | 设置 → 提示词/温度/备份 |
+| **停止/中止流式** | 可安全中止请求（前端中止 + 后端任务取消） | 输入区“停止”按钮 |
+| **搜索提供方选择** | DuckDuckGo（免费）+ Tavily + Exa + Brave，按消息选择 | 输入区搜索选择 |
+| **全文抓取（可选）** | 使用 Jina Reader 抓取 Top-N 页面，提高上下文质量 | 设置 → 网页搜索 |
+| **搜索上下文面板** | 结果紧凑展示（标题+域名），支持展开查看内容 | 助手消息区域 |
+| **UI 细节优化** | 下拉菜单样式、侧边栏操作、输入区布局优化 | 全局 UI |
 
-### Recent Updates (v1.3.0)
+### 近期更新（v1.3.0）
 
-- **Conversation Search** — Filter conversations by title in real-time
-- **Relative Dates** — Sidebar shows "Today 14:30", "Yesterday", "Mon", "Jan 2" etc.
-- **Stage-level Timeouts** — Stage 2/3 proceed after 90s with partial results (first-N-complete pattern)
-- **Toast Notifications** — Visual alerts for model timeouts and errors
-- **Improved Error Handling** — Graceful fallback when models fail or timeout
+- **对话搜索**：按标题实时过滤
+- **相对时间**：侧边栏显示“今天 14:30 / 昨天 / 周一 / 1 月 2 日”等
+- **阶段超时**：阶段 2/3 在 90 秒后基于已完成结果继续
+- **Toast 提示**：模型超时与错误的可视化提示
+- **错误处理改进**：模型失败时保持流程可用
 
-## Quick Start
+## 快速开始
 
-**Easiest way — use the Setup Wizard:**
+**推荐方式：使用初始化向导**
 ```bash
 cp .env.example .env
 docker compose up --build
-# Open http://localhost
-# The Setup Wizard will guide you through configuration
+# 打开 http://localhost:8088
+# 初始化向导将引导你完成配置
 ```
 
-The Setup Wizard lets you:
-- Choose LLM provider (OpenRouter or Ollama)
-- Enter API keys
-- Optionally enable authentication
-- Optionally configure web search (Tavily or Exa)
+初始化向导支持：
+- 配置 API 地址与 Key（OpenAI 兼容 new-api）
+- 可选开启认证
+- 可选配置网页搜索（Tavily / Exa / Brave）
 
-**Alternative: Manual configuration**
+**备用方式：手动配置**
 ```bash
 cp .env.example .env
-# Edit .env (see examples below)
+# 编辑 .env（示例如下）
 docker compose up --build
-# Open http://localhost
+# 打开 http://localhost:8088
 ```
 
-> **Note:** Authentication is disabled by default for easy setup. For production deployment with user authentication, see [SECURITY.md](SECURITY.md).
+> **注意**：默认关闭认证以降低配置门槛。如需多用户认证，请参考 [SECURITY.md](SECURITY.md)。
 
-## Vibe Code Alert
+## 维护说明
 
-This project was 99% vibe coded as a fun Saturday hack because I wanted to explore and evaluate a number of LLMs side by side in the process of [reading books together with LLMs](https://x.com/karpathy/status/1990577951671509438). It's nice and useful to see multiple responses side by side, and also the cross-opinions of all LLMs on each other's outputs. I'm not going to support it in any way, it's provided here as is for other people's inspiration and I don't intend to improve it. Code is ephemeral now and libraries are over, ask your LLM to change it in whatever way you like.
+本项目以工程实践为目标，按现状提供。你可以基于此仓库按需扩展与定制功能。
 
-## Detailed Setup
+## 详细配置
 
-### 1. Install Dependencies
+### 1. 安装依赖
 
-The project uses [uv](https://docs.astral.sh/uv/) for project management.
+项目使用 [uv](https://docs.astral.sh/uv/) 进行 Python 依赖管理。
 
-**Backend:**
+**后端：**
 ```bash
 uv sync
 ```
 
-**Frontend:**
+**前端：**
 ```bash
 cd frontend
 npm install
 cd ..
 ```
 
-### 2. Configure API Key
+### 2. 配置 API 地址与 Key
 
-Create a `.env` file in the project root:
+在项目根目录创建 `.env`：
 
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-...
+OPENROUTER_API_URL=http://host:3000/v1/chat/completions
+OPENROUTER_API_KEY=sk-...
 ```
 
-Get your API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
+API 地址需为 OpenAI 兼容的 `chat/completions` 端点。
+模型列表默认从 `/v1/models` 拉取；若端点不支持，可在 `.env` 中配置 `COUNCIL_MODELS` 与 `CHAIRMAN_MODEL` 作为回退。
 
-Alternatively, you can use Ollama for local models by setting `ROUTER_TYPE=ollama` in your `.env` file (see below).
+## 运行方式
 
-Models are selected via the Setup Wizard or dynamically in the UI. Browse all available models at [openrouter.ai/models](https://openrouter.ai/models).
-
-## Running the Application
-
-### Docker (Recommended)
+### Docker（推荐）
 
 ```bash
-# Start services
+# 启动服务
 docker compose up --build
 
-# Access the application at http://localhost
+# 访问应用：http://localhost:8088
 ```
 
-Backend API is available at http://localhost:8001
+后端 API：`http://localhost:8001`
 
-### Development Mode (without Docker)
+### 开发模式（不使用 Docker）
 
-Terminal 1 (Backend):
+终端 1（后端）：
 ```bash
 uv run python -m backend.main
 ```
 
-Terminal 2 (Frontend):
+终端 2（前端）：
 ```bash
 cd frontend
 npm run dev
 ```
 
-Then open http://localhost:5173 in your browser.
+打开 `http://localhost:5173`。
 
-## Common Configuration
+## 常用配置
 
-### OpenRouter (cloud)
+### New API（OpenAI 兼容）
 ```bash
 ROUTER_TYPE=openrouter
-OPENROUTER_API_KEY=sk-or-v1-...
+OPENROUTER_API_URL=http://host:3000/v1/chat/completions
+OPENROUTER_API_KEY=sk-...
 ```
 
-### Ollama (local)
-```bash
-ROUTER_TYPE=ollama
-```
+## 网页搜索（可选）
 
-If you're running the backend in Docker and Ollama is running on your host machine, set:
-```bash
-OLLAMA_HOST=host.docker.internal:11434
-```
+前端可在阶段 1 将搜索结果作为上下文。你可以按消息选择搜索提供方，或在设置中指定默认值。
 
-## Web Search (Optional)
+支持的提供方：
+- **DuckDuckGo（免费）**：默认可用，无需 API Key
+- **Tavily / Exa / Brave**：需配置 API Key
 
-The UI can run web search and inject results into Stage 1 as context. You can select the provider per message (search pill) or set a default in Settings.
-
-Providers:
-- **DuckDuckGo (free)**: enabled by default, no API key required
-- **Tavily / Exa / Brave**: require API keys (optional)
-
-Enable any of the optional providers:
+启用示例：
 ```bash
 ENABLE_TAVILY=true
 TAVILY_API_KEY=tvly-...
 ```
-
-or:
+或：
 ```bash
 ENABLE_EXA=true
 EXA_API_KEY=...
 ```
-
-or:
+或：
 ```bash
 ENABLE_BRAVE=true
 BRAVE_API_KEY=...
 ```
 
-## Storage
+## 存储
 
-Default storage is local JSON files under `data/conversations/` (mounted into the backend container).
+默认使用本地 JSON 文件（`data/conversations/`）。
 
-Database storage is supported via `DATABASE_TYPE=postgresql` or `DATABASE_TYPE=mysql` (see `backend/storage.py`).
+如需数据库存储，可使用：
+```bash
+DATABASE_TYPE=postgresql
+# 或
+DATABASE_TYPE=mysql
+```
 
-## Tech Stack
+## 技术栈
 
-- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API or Ollama
-- **Frontend:** React + Vite, react-markdown for rendering
-- **Storage:** JSON files in `data/conversations/` (optional DB storage)
-- **Package Management:** uv for Python, npm for JavaScript
+- **后端：** FastAPI（Python 3.10+）、async httpx、OpenAI 兼容 API
+- **前端：** React + Vite、react-markdown
+- **存储：** JSON（默认，可选数据库）
+- **依赖管理：** Python 使用 uv，前端使用 npm
 
-## Contributing
+## 贡献
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+开发规范与流程请参考 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-## Security
+## 安全
 
-See [SECURITY.md](SECURITY.md) for security considerations and reporting vulnerabilities.
+安全注意事项与漏洞报告请参考 [SECURITY.md](SECURITY.md)。
 
-## License
+## 许可
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License，详见 [LICENSE](LICENSE)。

@@ -121,22 +121,22 @@ def build_context_prompt(conversation_history: List[Dict[str, Any]], user_query:
     context_parts = []
     for msg in conversation_history:
         if msg.get('role') == 'user':
-            context_parts.append(f"User: {msg.get('content', '')}")
+            context_parts.append(f"用户: {msg.get('content', '')}")
         elif msg.get('role') == 'assistant':
             # Include only the final answer from stage3 for context
             if msg.get('stage3') and msg['stage3'].get('response'):
-                context_parts.append(f"Council Answer: {msg['stage3']['response']}")
+                context_parts.append(f"委员会答复: {msg['stage3']['response']}")
 
     if not context_parts:
         return user_query
 
     context = "\n\n".join(context_parts)
-    return f"""Previous conversation:
+    return f"""历史对话:
 {context}
 
-Current follow-up question: {user_query}
+当前追问: {user_query}
 
-Please answer the follow-up question, taking into account the previous conversation context."""
+请结合历史对话上下文回答当前追问。"""
 
 
 def build_multimodal_messages(
@@ -269,16 +269,16 @@ async def optimize_search_query(
     """
     chairman_model = chairman if chairman else CHAIRMAN_MODEL
 
-    prompt = f"""You are an expert at composing web search queries to find the latest and most relevant information.
+    prompt = f"""你擅长撰写网页搜索查询，用于获取最新且最相关的信息。
 
-Given the user's question, generate the BEST possible web search query that will:
-1. Find the most recent and up-to-date information
-2. Be specific enough to get relevant results
-3. Use effective search operators if helpful
+基于用户问题，生成最佳搜索查询，要求：
+1. 获取最新、最权威的信息
+2. 足够具体以获得相关结果
+3. 需要时可使用搜索运算符
 
-User's question: {user_query}
+用户问题：{user_query}
 
-Respond with ONLY the search query, nothing else. No explanations, no quotes, just the search query itself."""
+请仅输出搜索查询本身，不要附加解释或引号。"""
 
     messages = [{"role": "user", "content": prompt}]
 
@@ -601,7 +601,7 @@ Search Results:
     # Use provided models or fall back to default
     council_models = models if models else COUNCIL_MODELS
     if not council_models:
-        raise ValueError("No council models configured. Set COUNCIL_MODELS in .env or provide models in request.")
+        raise ValueError("未配置委员会模型。请在 .env 中设置 COUNCIL_MODELS，或在请求中提供 models。")
 
     logger.debug("[STAGE1] ========== STAGE 1: COLLECT RESPONSES ==========")
     logger.debug("[STAGE1] Query: %s...", user_query[:80])
@@ -626,7 +626,7 @@ Search Results:
                 "model": model,
                 "error": True,
                 "error_type": "unknown",
-                "error_message": "No response received"
+                "error_message": "未收到响应"
             })
         elif response.get('error'):
             # Include error information
@@ -634,7 +634,7 @@ Search Results:
                 "model": model,
                 "error": True,
                 "error_type": response.get('error_type', 'unknown'),
-                "error_message": response.get('error_message', 'Unknown error')
+                "error_message": response.get('error_message', '未知错误')
             })
         else:
             # Successful response
@@ -734,7 +734,7 @@ Search Results:
     # Use provided models or fall back to default
     council_models = models if models else COUNCIL_MODELS
     if not council_models:
-        raise ValueError("No council models configured. Set COUNCIL_MODELS in .env or provide models in request.")
+        raise ValueError("未配置委员会模型。请在 .env 中设置 COUNCIL_MODELS，或在请求中提供 models。")
 
     logger.debug("[STAGE1-STREAM] Messages count: %d (system=%d)", len(messages), sum(1 for m in messages if m.get('role')=='system'))
 
@@ -755,7 +755,7 @@ Search Results:
                 "model": model,
                 "error": True,
                 "error_type": "unknown",
-                "error_message": "No response received"
+                "error_message": "未收到响应"
             }
         elif response.get('error'):
             # Include error information
@@ -763,7 +763,7 @@ Search Results:
                 "model": model,
                 "error": True,
                 "error_type": response.get('error_type', 'unknown'),
-                "error_message": response.get('error_message', 'Unknown error')
+                "error_message": response.get('error_message', '未知错误')
             }
         else:
             # Successful response
@@ -885,7 +885,7 @@ async def stage2_collect_rankings(
                 "model": model,
                 "error": True,
                 "error_type": "unknown",
-                "error_message": "No response received"
+                "error_message": "未收到响应"
             })
             logger.warning("[STAGE2] Model %s returned None", model)
         elif response.get('error'):
@@ -895,7 +895,7 @@ async def stage2_collect_rankings(
                 "model": model,
                 "error": True,
                 "error_type": response.get('error_type', 'unknown'),
-                "error_message": response.get('error_message', 'Unknown error')
+                "error_message": response.get('error_message', '未知错误')
             })
             logger.warning("[STAGE2] Model %s failed: %s", model, response.get('error_message'))
         else:
@@ -913,7 +913,7 @@ async def stage2_collect_rankings(
                     "model": model,
                     "error": True,
                     "error_type": "empty",
-                    "error_message": "Model returned empty response"
+                    "error_message": "模型返回空响应"
                 })
                 logger.warning("[STAGE2] Model %s returned empty content", model)
 
@@ -954,7 +954,7 @@ async def stage3_synthesize_final(
         logger.error("[STAGE3] No Stage 1 results to synthesize")
         return {
             "model": chairman_model,
-            "response": "Error: No model responses were collected. All models may have failed or been rate-limited. Please try again.",
+            "response": "错误：未收集到任何模型响应，可能全部失败或触发限流，请稍后重试。",
             "error": True
         }
 
@@ -993,11 +993,11 @@ async def stage3_synthesize_final(
 
     settings = runtime_settings.get_runtime_settings()
     if has_rankings:
-        rankings_block = f"STAGE 2 - Peer Rankings:\n{stage2_text}"
+        rankings_block = f"阶段 2 - 互评排序:\n{stage2_text}"
     else:
         rankings_block = (
-            "Note: Peer rankings were not available due to rate limiting or other issues.\n\n"
-            "STAGE 2 - Peer Rankings:\n"
+            "说明：由于限流或其他问题，未获取到互评排序结果。\n\n"
+            "阶段 2 - 互评排序:\n"
         )
 
     try:
@@ -1032,7 +1032,7 @@ async def stage3_synthesize_final(
     # Check if response failed (None or error response)
     response_failed = response is None or response.get('error')
     if response_failed:
-        error_reason = response.get('error_message', 'No response') if response else 'No response'
+        error_reason = response.get('error_message', '无响应') if response else '无响应'
         # Try fallback: use models from Stage 1 as chairman (try each until one works)
         logger.warning("Chairman model %s failed (%s). Attempting fallback with preset models...",
                       chairman_model, error_reason)
@@ -1064,14 +1064,14 @@ async def stage3_synthesize_final(
                     "original_chairman": chairman_model
                 }
             else:
-                fail_reason = fallback_response.get('error_message') if fallback_response else 'No response'
+                fail_reason = fallback_response.get('error_message') if fallback_response else '无响应'
                 logger.warning("Fallback model %s also failed (%s), trying next...", fallback_model, fail_reason)
 
         # All fallbacks failed, return error with context
         error_msg = (
-            f"Error: Unable to generate final synthesis. "
-            f"Chairman model '{chairman_model}' and all {len(fallback_models)} fallback models failed to respond. "
-            f"All models may be rate-limited. Please try again in a few minutes."
+            f"错误：无法生成最终综合结果。"
+            f"主席模型 '{chairman_model}' 以及全部 {len(fallback_models)} 个候补模型均未响应。"
+            f"可能触发限流，请稍后重试。"
         )
         logger.error(error_msg)
         return {

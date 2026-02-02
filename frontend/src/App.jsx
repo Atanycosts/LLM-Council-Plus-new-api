@@ -99,7 +99,7 @@ function App() {
         setSetupChecked(true);
       })
       .catch((err) => {
-        console.error('Failed to check setup status:', err);
+        console.error('检查初始化状态失败:', err);
         // Assume setup is not required if check fails
         setSetupChecked(true);
       });
@@ -121,7 +121,7 @@ function App() {
         setAuthChecked(true);
       })
       .catch((err) => {
-        console.error('Failed to check auth status:', err);
+        console.error('检查认证状态失败:', err);
         // Default to auth enabled if check fails
         setAuthChecked(true);
       });
@@ -131,7 +131,7 @@ function App() {
   useEffect(() => {
     api.getDriveStatus()
       .then(setDriveStatus)
-      .catch((err) => console.log('Drive not configured:', err));
+      .catch((err) => console.log('Google Drive 未配置:', err));
   }, []);
 
   const loadConversations = async () => {
@@ -139,7 +139,7 @@ function App() {
       const convs = await api.listConversations();
       setConversations(convs);
     } catch (error) {
-      console.error('Failed to load conversations:', error);
+      console.error('加载对话列表失败:', error);
     }
   };
 
@@ -161,15 +161,19 @@ function App() {
       const conv = await api.getConversation(id);
       setCurrentConversation(conv);
     } catch (error) {
-      console.error('Failed to load conversation:', error);
+      console.error('加载对话失败:', error);
     }
   };
 
   // Load conversations on mount (only if authenticated)
   useEffect(() => {
     if (isAuthenticated) {
-      loadConversations();
+      const timer = setTimeout(() => {
+        loadConversations();
+      }, 0);
+      return () => clearTimeout(timer);
     }
+    return undefined;
   }, [isAuthenticated]);
 
   // Keep ref in sync with state for use in callbacks
@@ -205,7 +209,7 @@ function App() {
       setCurrentConversationId(newConv.id);
       setShowModelSelector(false);
     } catch (error) {
-      console.error('Failed to create conversation:', error);
+      console.error('创建对话失败:', error);
     }
   };
 
@@ -231,8 +235,8 @@ function App() {
       // Reload conversations list
       loadConversations();
     } catch (error) {
-      console.error('Failed to delete conversation:', error);
-      alert('Failed to delete conversation');
+      console.error('删除对话失败:', error);
+      alert('删除对话失败');
     }
   };
 
@@ -243,8 +247,8 @@ function App() {
       setCurrentConversation(null);
       loadConversations();
     } catch (error) {
-      console.error('Failed to delete all conversations:', error);
-      alert('Failed to delete all conversations');
+      console.error('清空对话失败:', error);
+      alert('清空对话失败');
     }
   };
 
@@ -263,8 +267,8 @@ function App() {
         setCurrentConversation(prev => ({ ...prev, title: newTitle }));
       }
     } catch (error) {
-      console.error('Failed to update title:', error);
-      alert('Failed to update conversation title');
+      console.error('更新标题失败:', error);
+      alert('更新对话标题失败');
     }
   };
 
@@ -362,7 +366,7 @@ function App() {
             // Add individual model response to stage1 array as it arrives
             // Guard against malformed events
             if (!event?.data?.model) {
-              console.warn('Received stage1_model_response without model data:', event);
+              console.warn('收到 stage1_model_response，但缺少模型数据:', event);
               break;
             }
             // Show toast notification for errors (timeout, rate limit, etc.)
@@ -370,14 +374,14 @@ function App() {
               const modelName = event.data.model.split('/')[1] || event.data.model;
               const errorType = event.data.error_type || 'unknown';
               const errorMessages = {
-                timeout: `${modelName}: Request timed out`,
-                stage_timeout: `${modelName}: Stage timeout (too slow)`,
-                rate_limit: `${modelName}: Rate limited`,
-                auth: `${modelName}: Authentication error`,
-                connection: `${modelName}: Connection error`,
-                empty: `${modelName}: Empty response`,
+                timeout: `${modelName}: 请求超时`,
+                stage_timeout: `${modelName}: 阶段超时（响应过慢）`,
+                rate_limit: `${modelName}: 触发限流`,
+                auth: `${modelName}: 认证失败`,
+                connection: `${modelName}: 连接失败`,
+                empty: `${modelName}: 空响应`,
               };
-              addToast(errorMessages[errorType] || `${modelName}: ${event.data.error_message || 'Error'}`, 'warning');
+              addToast(errorMessages[errorType] || `${modelName}: ${event.data.error_message || '错误'}`, 'warning');
             }
             updateStreamingState((prev) => {
               const lastIdx = prev.messages.length - 1;
@@ -514,10 +518,10 @@ function App() {
                 const md = exportToMarkdown(userContent, newLastMsg);
                 api.uploadToDrive(generateFilename(msgIndex), md)
                   .then((result) => {
-                    console.log('Auto-uploaded to Drive:', result.file.webViewLink);
+                    console.log('已自动上传到 Google Drive:', result.file.webViewLink);
                   })
                   .catch((err) => {
-                    console.error('Auto-upload to Drive failed:', err);
+                    console.error('自动上传到 Google Drive 失败:', err);
                   });
               }
 
@@ -560,8 +564,8 @@ function App() {
           }
 
           case 'error': {
-            console.error('Stream error:', event.message);
-            addToast(`Stream error: ${event.message || 'Unknown error'}`, 'error');
+            console.error('流式请求错误:', event.message);
+            addToast(`流式错误: ${event.message || '未知错误'}`, 'error');
             // Clear streaming state on error
             const streamingConvId = activeStreamingConvIdRef.current;
             if (streamingConvId) {
@@ -574,13 +578,13 @@ function App() {
           }
 
           default:
-            console.log('Unknown event type:', eventType);
+            console.log('未知事件类型:', eventType);
         }
       }, attachments, webSearchProvider, { signal: streamAbortControllerRef.current.signal });
     } catch (error) {
       // Handle user-initiated abort (Stop button)
       if (error?.name === 'AbortError' || streamAbortRequestedRef.current) {
-        addToast('Cancelled', 'warning', 2500);
+        addToast('已取消', 'warning', 2500);
         updateStreamingState((prev) => {
           const lastIdx = prev.messages.length - 1;
           const lastMsg = prev.messages[lastIdx];
@@ -608,7 +612,7 @@ function App() {
         return;
       }
 
-      console.error('Failed to send message:', error);
+      console.error('发送消息失败:', error);
       // Remove optimistic messages on error
       setCurrentConversation((prev) => ({
         ...prev,
@@ -625,7 +629,7 @@ function App() {
     try {
       streamAbortControllerRef.current?.abort();
     } catch (e) {
-      console.error('Failed to abort stream:', e);
+      console.error('中止流式请求失败:', e);
     }
   };
 
@@ -633,7 +637,7 @@ function App() {
   if (!setupChecked) {
     return (
       <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div>Loading...</div>
+        <div>加载中...</div>
       </div>
     );
   }
@@ -647,7 +651,7 @@ function App() {
   if (!authChecked) {
     return (
       <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div>Loading...</div>
+        <div>加载中...</div>
       </div>
     );
   }

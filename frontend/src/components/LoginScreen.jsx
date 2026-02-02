@@ -11,7 +11,7 @@ export default function LoginScreen({ onLogin }) {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [version, setVersion] = useState('');
 
-  // Fetch users and version from backend API on mount
+  // 挂载时从后端获取用户列表与版本
   useEffect(() => {
     async function fetchData() {
       try {
@@ -22,8 +22,8 @@ export default function LoginScreen({ onLogin }) {
         setUsers(usersResponse.users || []);
         setVersion(versionResponse.version || '');
       } catch (err) {
-        console.error('Failed to fetch data:', err);
-        setError('Failed to load data');
+        console.error('获取登录数据失败:', err);
+        setError('加载数据失败');
       } finally {
         setIsLoadingUsers(false);
       }
@@ -36,12 +36,12 @@ export default function LoginScreen({ onLogin }) {
     setError('');
 
     if (!selectedUser) {
-      setError('Please enter username');
+      setError('请输入用户名');
       return;
     }
 
     if (!password) {
-      setError('Please enter password');
+      setError('请输入密码');
       return;
     }
 
@@ -63,13 +63,13 @@ export default function LoginScreen({ onLogin }) {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setError(data.error || 'Login failed');
+        setError(data.error || '登录失败');
         return;
       }
 
       onLogin(data.user.username, data.token, data.expiresAt);
     } catch (err) {
-      setError(err.message || 'Network error');
+      setError(err.message || '网络错误');
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +103,7 @@ export default function LoginScreen({ onLogin }) {
             </svg>
           </div>
           <h1 className="login-title">LLM Council Plus</h1>
-          <p className="login-subtitle">Please sign in to continue</p>
+          <p className="login-subtitle">请登录后继续</p>
         </div>
 
         {/* Login Form */}
@@ -111,24 +111,24 @@ export default function LoginScreen({ onLogin }) {
           {/* User Selection */}
           <div className="form-group">
             <label className="form-label">
-              {users.length > 0 ? 'Select User' : 'Username'}
+              {users.length > 0 ? '选择用户' : '用户名'}
             </label>
             {isLoadingUsers ? (
-              <span className="loading-users">Loading...</span>
+              <span className="loading-users">加载中...</span>
             ) : users.length === 0 ? (
-              /* Production mode: manual username input */
+            /* 手动输入用户名 */
               <input
                 id="username"
                 type="text"
                 value={selectedUser}
                 onChange={(e) => setSelectedUser(e.target.value)}
-                placeholder="Enter username"
+                placeholder="请输入用户名"
                 className="form-input"
                 disabled={isLoading}
                 autoComplete="username"
               />
             ) : (
-              /* Demo mode: user buttons */
+              /* 通过按钮选择用户 */
               <div className="user-buttons">
                 {users.map((user) => (
                   <button
@@ -147,14 +147,14 @@ export default function LoginScreen({ onLogin }) {
           {/* Password Input */}
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Password
+              密码
             </label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
+              placeholder="请输入密码"
               className="form-input"
               autoComplete="current-password"
               disabled={isLoading}
@@ -180,17 +180,17 @@ export default function LoginScreen({ onLogin }) {
                   <circle className="spinner-bg" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="spinner-fg" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Signing in...
+                正在登录...
               </span>
             ) : (
-              'Sign In'
+              '登录'
             )}
           </button>
         </form>
 
         {/* Footer */}
         <p className="login-footer">
-          Your data is protected and secure
+          数据访问受当前配置控制
           {version && <span className="version-info">v{version}</span>}
         </p>
       </div>

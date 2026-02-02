@@ -2,64 +2,65 @@ import { useState } from 'react';
 import { api } from '../api';
 import './SetupWizard.css';
 
-export default function SetupWizard({ onComplete }) {
-  const [routerType, setRouterType] = useState('openrouter');
+export default function SetupWizard() {
+  const routerType = 'openrouter';
+  const [apiBaseUrl, setApiBaseUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [tavilyKey, setTavilyKey] = useState('');
   const [exaKey, setExaKey] = useState('');
   const [braveKey, setBraveKey] = useState('');
-  // Authentication state
+  // 认证相关状态
   const [authEnabled, setAuthEnabled] = useState(false);
   const [jwtSecret, setJwtSecret] = useState('');
   const [users, setUsers] = useState([{ username: '', password: '' }]);
-  // UI state
+  // UI 状态
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
 
-  // Generate JWT secret
+  // 生成 JWT 密钥
   const handleGenerateJwt = async () => {
     try {
       const { secret } = await api.generateSecret('jwt');
       setJwtSecret(secret);
-    } catch (err) {
-      setError('Failed to generate JWT secret');
+    } catch {
+      setError('生成 JWT 密钥失败');
     }
   };
 
-  // Generate password for a user
+  // 为指定用户生成密码
   const handleGeneratePassword = async (index) => {
     try {
       const { secret } = await api.generateSecret('password');
       const newUsers = [...users];
       newUsers[index].password = secret;
       setUsers(newUsers);
-    } catch (err) {
-      setError('Failed to generate password');
+    } catch {
+      setError('生成密码失败');
     }
   };
 
-  // Copy to clipboard
+  // 复制到剪贴板
   const copyToClipboard = (text, fieldId) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldId);
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // Add new user
+  // 新增用户
   const addUser = () => {
     setUsers([...users, { username: '', password: '' }]);
   };
 
-  // Remove user
+  // 删除用户
   const removeUser = (index) => {
     if (users.length > 1) {
       setUsers(users.filter((_, i) => i !== index));
     }
   };
 
-  // Update user field
+  // 更新用户字段
   const updateUser = (index, field, value) => {
     const newUsers = [...users];
     newUsers[index][field] = value;
@@ -70,20 +71,24 @@ export default function SetupWizard({ onComplete }) {
     e.preventDefault();
     setError('');
 
-    if (routerType === 'openrouter' && !apiKey) {
-      setError('Please enter your OpenRouter API key');
+    if (!apiBaseUrl) {
+      setError('请输入 API 地址');
+      return;
+    }
+    if (!apiKey) {
+      setError('请输入 API Key');
       return;
     }
 
-    // Validate auth if enabled
+    // 开启认证时校验配置
     if (authEnabled) {
       if (!jwtSecret) {
-        setError('Please generate a JWT secret');
+        setError('请生成 JWT 密钥');
         return;
       }
       const validUsers = users.filter(u => u.username && u.password);
       if (validUsers.length === 0) {
-        setError('Please add at least one user');
+        setError('请至少添加一个用户');
         return;
       }
     }
@@ -92,26 +97,25 @@ export default function SetupWizard({ onComplete }) {
 
     try {
       const config = { router_type: routerType };
-      if (routerType === 'openrouter') {
-        config.openrouter_api_key = apiKey;
-      }
-      // Add Tavily key if provided (optional)
+      config.openrouter_api_key = apiKey;
+      config.openrouter_api_url = apiBaseUrl;
+      // 可选：配置 Tavily Key
       if (tavilyKey) {
         config.tavily_api_key = tavilyKey;
       }
-      // Add Exa key if provided (optional)
+      // 可选：配置 Exa Key
       if (exaKey) {
         config.exa_api_key = exaKey;
       }
-      // Add Brave key if provided (optional)
+      // 可选：配置 Brave Key
       if (braveKey) {
         config.brave_api_key = braveKey;
       }
-      // Add auth config if enabled
+      // 认证配置
       config.auth_enabled = authEnabled;
       if (authEnabled) {
         config.jwt_secret = jwtSecret;
-        // Convert users array to object
+        // 将用户数组转为对象
         const usersObj = {};
         users.forEach(u => {
           if (u.username && u.password) {
@@ -129,7 +133,7 @@ export default function SetupWizard({ onComplete }) {
         window.location.reload();
       }, 2000);
     } catch (err) {
-      setError(err.message || 'Failed to save configuration');
+      setError(err.message || '保存配置失败');
     } finally {
       setIsLoading(false);
     }
@@ -141,8 +145,8 @@ export default function SetupWizard({ onComplete }) {
         <div className="setup-box">
           <div className="setup-success">
             <div className="success-icon">&#10003;</div>
-            <h2>Configuration Saved!</h2>
-            <p>Reloading application...</p>
+            <h2>配置已保存</h2>
+            <p>正在重新加载…</p>
           </div>
         </div>
       </div>
@@ -153,80 +157,63 @@ export default function SetupWizard({ onComplete }) {
     <div className="setup-container">
       <div className="setup-box setup-box-wide">
         <div className="setup-header">
-          <h1 className="setup-title">Welcome to LLM Council Plus</h1>
-          <p className="setup-subtitle">Let's configure your application</p>
+          <h1 className="setup-title">欢迎使用 LLM Council Plus</h1>
+          <p className="setup-subtitle">请完成初始化配置</p>
         </div>
 
         <form onSubmit={handleSubmit} className="setup-form">
-          {/* Step 1: Choose Router Type */}
+          {/* Step 1: Provider */}
           <div className="form-group">
-            <label className="form-label">Choose LLM Provider</label>
+            <label className="form-label">LLM 提供方</label>
             <div className="router-options">
-              <button
-                type="button"
-                className={`router-option ${routerType === 'openrouter' ? 'selected' : ''}`}
-                onClick={() => setRouterType('openrouter')}
-              >
-                <div className="router-icon">&#127758;</div>
-                <div className="router-name">OpenRouter</div>
-                <div className="router-desc">Cloud models (GPT, Claude, Gemini)</div>
-              </button>
-              <button
-                type="button"
-                className={`router-option ${routerType === 'ollama' ? 'selected' : ''}`}
-                onClick={() => setRouterType('ollama')}
-              >
-                <div className="router-icon">&#128187;</div>
-                <div className="router-name">Ollama</div>
-                <div className="router-desc">Local models (no API key)</div>
-              </button>
-            </div>
-          </div>
-
-          {/* Step 2: API Key (only for OpenRouter) */}
-          {routerType === 'openrouter' && (
-            <div className="form-group">
-              <label htmlFor="apiKey" className="form-label">
-                OpenRouter API Key
-              </label>
-              <input
-                id="apiKey"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-or-v1-..."
-                className="form-input"
-                disabled={isLoading}
-              />
-              <p className="form-hint">
-                Get your key at{' '}
-                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">
-                  openrouter.ai/keys
-                </a>
-              </p>
-            </div>
-          )}
-
-          {routerType === 'ollama' && (
-            <div className="form-group">
-              <div className="ollama-notice">
-                <p>
-                  <strong>Ollama</strong> must be running locally on port 11434.
-                </p>
-                <p>
-                  Install from{' '}
-                  <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer">
-                    ollama.ai
-                  </a>
-                </p>
+              <div className="router-option selected">
+                <div className="router-name">New API（OpenAI 兼容）</div>
+                <div className="router-desc">仅使用你配置的地址与 Key</div>
               </div>
             </div>
-          )}
+            <p className="form-hint">当前版本仅支持 OpenAI 兼容接口。</p>
+          </div>
+
+          {/* Step 2: API Address */}
+          <div className="form-group">
+            <label htmlFor="apiBaseUrl" className="form-label">
+              API 地址（OpenAI 兼容）
+            </label>
+            <input
+              id="apiBaseUrl"
+              type="text"
+              value={apiBaseUrl}
+              onChange={(e) => setApiBaseUrl(e.target.value)}
+              placeholder="http://localhost:3000/v1/chat/completions"
+              className="form-input"
+              disabled={isLoading}
+            />
+            <p className="form-hint">
+              填写完整的 chat/completions 地址，例如 <span>http://host:3000/v1/chat/completions</span>。
+            </p>
+          </div>
+
+          {/* Step 3: API Key */}
+          <div className="form-group">
+            <label htmlFor="apiKey" className="form-label">
+              API Key
+            </label>
+            <input
+              id="apiKey"
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-..."
+              className="form-input"
+              disabled={isLoading}
+            />
+            <p className="form-hint">用于鉴权，未配置将无法拉取模型列表。</p>
+          </div>
 
           {/* Optional: Tavily API Key for Web Search */}
           <div className="form-group">
             <label htmlFor="tavilyKey" className="form-label">
-              Tavily API Key <span className="optional-badge">Optional</span>
+              Tavily API Key <span className="optional-badge">可选</span>
             </label>
             <input
               id="tavilyKey"
@@ -238,7 +225,7 @@ export default function SetupWizard({ onComplete }) {
               disabled={isLoading}
             />
             <p className="form-hint">
-              Enables advanced web search. Get key at{' '}
+              启用高级网页搜索。获取 Key：{' '}
               <a href="https://tavily.com" target="_blank" rel="noopener noreferrer">
                 tavily.com
               </a>
@@ -248,7 +235,7 @@ export default function SetupWizard({ onComplete }) {
           {/* Optional: Exa API Key for AI-powered Web Search */}
           <div className="form-group">
             <label htmlFor="exaKey" className="form-label">
-              Exa API Key <span className="optional-badge">Optional</span>
+              Exa API Key <span className="optional-badge">可选</span>
             </label>
             <input
               id="exaKey"
@@ -260,7 +247,7 @@ export default function SetupWizard({ onComplete }) {
               disabled={isLoading}
             />
             <p className="form-hint">
-              AI-powered web search alternative. Get key at{' '}
+              AI 驱动的网页搜索方案。获取 Key：{' '}
               <a href="https://exa.ai" target="_blank" rel="noopener noreferrer">
                 exa.ai
               </a>
@@ -270,7 +257,7 @@ export default function SetupWizard({ onComplete }) {
           {/* Optional: Brave API Key for Web Search */}
           <div className="form-group">
             <label htmlFor="braveKey" className="form-label">
-              Brave Search API Key <span className="optional-badge">Optional</span>
+              Brave Search API Key <span className="optional-badge">可选</span>
             </label>
             <input
               id="braveKey"
@@ -282,14 +269,14 @@ export default function SetupWizard({ onComplete }) {
               disabled={isLoading}
             />
             <p className="form-hint">
-              Enables Brave Search. Provide your Brave Search API key.
+              启用 Brave Search，请填写 API Key。
             </p>
           </div>
 
           {/* Authentication Section */}
           <div className="form-group">
             <label className="form-label">
-              Authentication <span className="optional-badge">Optional</span>
+              认证 <span className="optional-badge">可选</span>
             </label>
             <label className="auth-toggle">
               <input
@@ -298,17 +285,17 @@ export default function SetupWizard({ onComplete }) {
                 onChange={(e) => setAuthEnabled(e.target.checked)}
                 disabled={isLoading}
               />
-              <span className="auth-toggle-label">Enable user authentication</span>
+              <span className="auth-toggle-label">启用用户认证</span>
             </label>
           </div>
 
           {/* Auth Config (shown when enabled) */}
           {authEnabled && (
             <div className="auth-config">
-              {/* JWT Secret */}
+              {/* JWT 密钥 */}
               <div className="form-group">
                 <label htmlFor="jwtSecret" className="form-label">
-                  JWT Secret
+                  JWT 密钥
                 </label>
                 <div className="input-with-button">
                   <input
@@ -316,7 +303,7 @@ export default function SetupWizard({ onComplete }) {
                     type="text"
                     value={jwtSecret}
                     onChange={(e) => setJwtSecret(e.target.value)}
-                    placeholder="Click Generate to create a secure secret"
+                    placeholder="点击生成安全密钥"
                     className="form-input"
                     disabled={isLoading}
                     readOnly
@@ -327,7 +314,7 @@ export default function SetupWizard({ onComplete }) {
                     onClick={handleGenerateJwt}
                     disabled={isLoading}
                   >
-                    Generate
+                    生成
                   </button>
                   {jwtSecret && (
                     <button
@@ -335,8 +322,18 @@ export default function SetupWizard({ onComplete }) {
                       className="copy-btn"
                       onClick={() => copyToClipboard(jwtSecret, 'jwt')}
                       disabled={isLoading}
+                      title={copiedField === 'jwt' ? '已复制' : '复制密钥'}
                     >
-                      {copiedField === 'jwt' ? '✓' : '📋'}
+                      {copiedField === 'jwt' ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <rect x="2" y="2" width="13" height="13" rx="2" ry="2" />
+                        </svg>
+                      )}
                     </button>
                   )}
                 </div>
@@ -344,7 +341,7 @@ export default function SetupWizard({ onComplete }) {
 
               {/* Users */}
               <div className="form-group">
-                <label className="form-label">Users</label>
+                <label className="form-label">用户</label>
                 <div className="users-list">
                   {users.map((user, index) => (
                     <div key={index} className="user-row">
@@ -352,7 +349,7 @@ export default function SetupWizard({ onComplete }) {
                         type="text"
                         value={user.username}
                         onChange={(e) => updateUser(index, 'username', e.target.value)}
-                        placeholder="Username"
+                        placeholder="用户名"
                         className="form-input user-input"
                         disabled={isLoading}
                       />
@@ -361,7 +358,7 @@ export default function SetupWizard({ onComplete }) {
                           type="text"
                           value={user.password}
                           onChange={(e) => updateUser(index, 'password', e.target.value)}
-                          placeholder="Password"
+                          placeholder="密码"
                           className="form-input user-input"
                           disabled={isLoading}
                         />
@@ -370,9 +367,9 @@ export default function SetupWizard({ onComplete }) {
                           className="generate-btn small"
                           onClick={() => handleGeneratePassword(index)}
                           disabled={isLoading}
-                          title="Generate password"
+                          title="生成密码"
                         >
-                          Gen
+                          生成
                         </button>
                         {user.password && (
                           <button
@@ -380,9 +377,18 @@ export default function SetupWizard({ onComplete }) {
                             className="copy-btn small"
                             onClick={() => copyToClipboard(user.password, `pwd-${index}`)}
                             disabled={isLoading}
-                            title="Copy password"
+                            title={copiedField === `pwd-${index}` ? '已复制' : '复制密码'}
                           >
-                            {copiedField === `pwd-${index}` ? '✓' : '📋'}
+                            {copiedField === `pwd-${index}` ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                <rect x="2" y="2" width="13" height="13" rx="2" ry="2" />
+                              </svg>
+                            )}
                           </button>
                         )}
                       </div>
@@ -392,7 +398,7 @@ export default function SetupWizard({ onComplete }) {
                           className="remove-btn"
                           onClick={() => removeUser(index)}
                           disabled={isLoading}
-                          title="Remove user"
+                          title="移除用户"
                         >
                           ×
                         </button>
@@ -406,7 +412,7 @@ export default function SetupWizard({ onComplete }) {
                   onClick={addUser}
                   disabled={isLoading}
                 >
-                  + Add User
+                  + 添加用户
                 </button>
               </div>
             </div>
@@ -416,15 +422,15 @@ export default function SetupWizard({ onComplete }) {
 
           <button
             type="submit"
-            disabled={isLoading || (routerType === 'openrouter' && !apiKey)}
+            disabled={isLoading || !apiKey || !apiBaseUrl}
             className="submit-button"
           >
-            {isLoading ? 'Saving...' : 'Complete Setup'}
+            {isLoading ? '保存中...' : '完成配置'}
           </button>
         </form>
 
         <p className="setup-footer">
-          Configuration will be saved to .env file
+          配置将保存到 .env 文件
         </p>
       </div>
     </div>

@@ -39,8 +39,8 @@ def get_database_url() -> str:
         return None
     else:
         raise ValueError(
-            f"Invalid DATABASE_TYPE: {DB_TYPE}. "
-            "Must be 'postgresql', 'mysql', or 'json'"
+            f"DATABASE_TYPE 无效: {DB_TYPE}。"
+            "必须为 'postgresql'、'mysql' 或 'json'"
         )
 
 
@@ -72,7 +72,7 @@ def create_database_engine():
             pool_recycle=3600,  # Recycle connections after 1 hour
         )
     else:
-        raise ValueError(f"Unsupported database type: {DB_TYPE}")
+        raise ValueError(f"不支持的数据库类型: {DB_TYPE}")
 
     return engine
 
@@ -94,7 +94,7 @@ def get_db():
         Database session
     """
     if SessionLocal is None:
-        raise RuntimeError("Database not configured. Set DATABASE_TYPE in .env")
+        raise RuntimeError("数据库未配置。请在 .env 中设置 DATABASE_TYPE。")
 
     db = SessionLocal()
     try:

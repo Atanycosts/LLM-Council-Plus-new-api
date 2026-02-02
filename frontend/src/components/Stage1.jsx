@@ -7,14 +7,14 @@ import './Stage1.css';
 
 // Error type to user-friendly message mapping
 const ERROR_MESSAGES = {
-  rate_limit: 'Rate limited - too many requests',
-  not_found: 'Model not available',
-  auth: 'Authentication error',
-  timeout: 'Request timed out',
-  stage_timeout: 'Stage timeout - model too slow',
-  connection: 'Connection error',
-  empty: 'Empty response',
-  unknown: 'Unknown error',
+  rate_limit: '触发限流：请求过多',
+  not_found: '模型不可用',
+  auth: '认证失败',
+  timeout: '请求超时',
+  stage_timeout: '阶段超时：模型响应过慢',
+  connection: '连接失败',
+  empty: '空响应',
+  unknown: '未知错误',
 };
 
 const Stage1 = memo(function Stage1({ responses, timings, isStreaming }) {
@@ -32,20 +32,20 @@ const Stage1 = memo(function Stage1({ responses, timings, isStreaming }) {
       {timings && (timings.start || timings.end) && (
         <div className="stage-timing-top-right">
           {timings.start && (
-            <span className="timing-start">Started: {formatTimestamp(timings.start)}</span>
+            <span className="timing-start">开始: {formatTimestamp(timings.start)}</span>
           )}
           {timings.end && (
-            <span className="timing-end">Ended: {formatTimestamp(timings.end)}</span>
+            <span className="timing-end">结束: {formatTimestamp(timings.end)}</span>
           )}
           {timings.duration !== null && timings.duration !== undefined && (
-            <span className="timing-duration">Elapsed: {formatDuration(timings.duration)}</span>
+            <span className="timing-duration">耗时: {formatDuration(timings.duration)}</span>
           )}
         </div>
       )}
       <div className="stage-header">
         <h3 className="stage-title">
-          Stage 1: Individual Responses
-          {isStreaming && <span className="streaming-badge">streaming...</span>}
+          阶段 1：独立回答
+          {isStreaming && <span className="streaming-badge">流式中...</span>}
         </h3>
       </div>
 
@@ -73,7 +73,7 @@ const Stage1 = memo(function Stage1({ responses, timings, isStreaming }) {
         {hasError ? (
           <div className="error-content">
             <div className="error-badge">
-              {ERROR_MESSAGES[currentResponse.error_type] || 'Error'}
+              {ERROR_MESSAGES[currentResponse.error_type] || '错误'}
             </div>
             <div className="error-message">
               {currentResponse.error_message}

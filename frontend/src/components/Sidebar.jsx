@@ -18,8 +18,8 @@ export default function Sidebar({
 }) {
   const [deletingIds, setDeletingIds] = useState(new Set());
   const [version, setVersion] = useState('');
-  const [users, setUsers] = useState(['All']);
-  const [userFilter, setUserFilter] = useState('All');
+  const [users, setUsers] = useState(['全部']);
+  const [userFilter, setUserFilter] = useState('全部');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
@@ -36,7 +36,7 @@ export default function Sidebar({
     let result = conversations;
 
     // Filter by user
-    if (userFilter !== 'All') {
+    if (userFilter !== '全部') {
       result = result.filter(conv => conv.username === userFilter);
     }
 
@@ -55,7 +55,7 @@ export default function Sidebar({
     api.getVersion().then(({ version }) => setVersion(version));
     api.getUsers().then(({ users: fetchedUsers }) => {
       if (fetchedUsers && fetchedUsers.length > 0) {
-        setUsers(['All', ...fetchedUsers]);
+        setUsers(['全部', ...fetchedUsers]);
       }
     });
   }, []);
@@ -65,7 +65,7 @@ export default function Sidebar({
     e.stopPropagation();
     setMenuOpenId(null);
     setEditingId(conv.id);
-    setEditTitle(conv.title || 'New Conversation');
+    setEditTitle(conv.title || '新对话');
   };
 
   const handleSaveEdit = async (conversationId) => {
@@ -114,7 +114,7 @@ export default function Sidebar({
 
   const handleDeleteClick = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this conversation?')) {
+    if (!window.confirm('确认删除该对话？')) {
       return;
     }
 
@@ -133,7 +133,7 @@ export default function Sidebar({
   };
 
   const handleDeleteAllClick = async () => {
-    if (!window.confirm('Are you sure you want to delete ALL conversations? This cannot be undone.')) {
+    if (!window.confirm('确认清空全部对话？此操作不可撤销。')) {
       return;
     }
 
@@ -173,7 +173,7 @@ export default function Sidebar({
 
         <div className="sidebar-actions">
           <button className="new-conversation-btn" onClick={onNewConversation}>
-            + New Conversation
+            + 新对话
           </button>
 
           <div className="sidebar-actions-row">
@@ -181,11 +181,23 @@ export default function Sidebar({
               <button
                 className="sidebar-action-btn sidebar-action-btn--secondary"
                 onClick={onOpenSettings}
-                title="Edit prompts and temperatures"
+                title="编辑提示词与温度"
                 type="button"
               >
-                <span className="sidebar-action-btn__icon" aria-hidden="true">⚙︎</span>
-                <span>Settings</span>
+                <span className="sidebar-action-btn__icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 1v2" />
+                    <path d="M12 21v2" />
+                    <path d="M4.22 4.22l1.42 1.42" />
+                    <path d="M18.36 18.36l1.42 1.42" />
+                    <path d="M1 12h2" />
+                    <path d="M21 12h2" />
+                    <path d="M4.22 19.78l1.42-1.42" />
+                    <path d="M18.36 5.64l1.42-1.42" />
+                  </svg>
+                </span>
+                <span>设置</span>
               </button>
             )}
           </div>
@@ -197,7 +209,7 @@ export default function Sidebar({
             ref={searchInputRef}
             type="text"
             className="search-input"
-            placeholder="Search conversations..."
+            placeholder="搜索对话..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -208,7 +220,7 @@ export default function Sidebar({
                 setSearchQuery('');
                 searchInputRef.current?.focus();
               }}
-              title="Clear search"
+              title="清空搜索"
             >
               ×
             </button>
@@ -233,10 +245,10 @@ export default function Sidebar({
         {filteredConversations.length === 0 ? (
           <div className="no-conversations">
             {conversations.length === 0
-              ? 'No conversations yet'
+              ? '暂无对话'
               : searchQuery
-                ? 'No matching conversations'
-                : 'No conversations for this user'}
+                ? '没有匹配的对话'
+                : '该用户无对话'}
           </div>
         ) : (
           filteredConversations.map((conv) => (
@@ -260,13 +272,13 @@ export default function Sidebar({
                   />
                 ) : (
                   <div className="conversation-title">
-                    {conv.title || 'New Conversation'}
+                    {conv.title || '新对话'}
                   </div>
                 )}
                 <div className="conversation-meta">
                   <span className="meta-date">{formatRelativeDate(conv.created_at)}</span>
                   <span className="meta-separator">·</span>
-                  <span className="meta-count">{conv.message_count} msgs</span>
+                  <span className="meta-count">{conv.message_count} 条消息</span>
                   {conv.username && (
                     <>
                       <span className="meta-separator">·</span>
@@ -282,7 +294,7 @@ export default function Sidebar({
                   ref={(el) => (menuButtonRefs.current[conv.id] = el)}
                   className="menu-btn"
                   onClick={(e) => toggleMenu(e, conv.id)}
-                  title="Options"
+                  title="更多操作"
                 >
                   ⋮
                 </button>
@@ -311,13 +323,13 @@ export default function Sidebar({
                 if (conv) handleStartEdit(e, conv);
               }}
             >
-              ✏️ Edit title
+              编辑标题
             </button>
             <button
               className="menu-item delete"
               onClick={(e) => handleDeleteClick(menuOpenId, e)}
             >
-              🗑️ Delete
+              删除
             </button>
           </div>
         </div>,
@@ -329,8 +341,12 @@ export default function Sidebar({
           <div className="user-status">
             <span className="user-avatar">{username.charAt(0).toUpperCase()}</span>
             <span className="user-name">{username}</span>
-            <button className="logout-btn" onClick={logout} title="Sign out">
-              ↪
+            <button className="logout-btn" onClick={logout} title="退出登录">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg>
             </button>
           </div>
         )}
@@ -341,11 +357,17 @@ export default function Sidebar({
             <button
               className="sidebar-action-btn sidebar-action-btn--danger sidebar-action-btn--compact"
               onClick={handleDeleteAllClick}
-              title="Delete all conversations"
+              title="清空全部对话"
               type="button"
             >
-              <span className="sidebar-action-btn__icon" aria-hidden="true">🗑</span>
-              <span>Delete All</span>
+              <span className="sidebar-action-btn__icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M6 6l1 14h10l1-14" />
+                </svg>
+              </span>
+              <span>清空对话</span>
             </button>
           )}
         </div>

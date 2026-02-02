@@ -22,7 +22,7 @@ function getAuthToken() {
       }
     }
   } catch (e) {
-    console.error('Failed to get auth token:', e);
+    console.error('获取认证令牌失败:', e);
   }
   return null;
 }
@@ -50,7 +50,7 @@ function handleUnauthorized() {
   try {
     localStorage.removeItem('llm-council-auth');
   } catch (e) {
-    console.error('Failed to clear auth state:', e);
+    console.error('清理认证状态失败:', e);
   }
   // Reload the page to trigger login screen
   window.location.reload();
@@ -69,7 +69,7 @@ async function authFetch(url, options = {}) {
 
   if (response.status === 401) {
     handleUnauthorized();
-    throw new Error('Session expired. Please log in again.');
+    throw new Error('会话已过期，请重新登录。');
   }
 
   return response;
@@ -84,7 +84,7 @@ export const api = {
   async getAuthStatus() {
     const response = await fetch(`${API_BASE}/api/auth/status`);
     if (!response.ok) {
-      throw new Error('Failed to get auth status');
+      throw new Error('获取认证状态失败');
     }
     return response.json();
   },
@@ -112,12 +112,12 @@ export const api = {
 
     if (response.status === 401) {
       handleUnauthorized();
-      throw new Error('Session expired. Please log in again.');
+      throw new Error('会话已过期，请重新登录。');
     }
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to upload file');
+      throw new Error(error.detail || '上传文件失败');
     }
 
     return response.json();
@@ -129,7 +129,7 @@ export const api = {
   async listConversations() {
     const response = await authFetch(`${API_BASE}/api/conversations`);
     if (!response.ok) {
-      throw new Error('Failed to list conversations');
+      throw new Error('获取对话列表失败');
     }
     return response.json();
   },
@@ -167,7 +167,7 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      throw new Error('Failed to create conversation');
+      throw new Error('创建对话失败');
     }
     return response.json();
   },
@@ -178,7 +178,7 @@ export const api = {
   async getRuntimeSettings() {
     const response = await authFetch(`${API_BASE}/api/settings`);
     if (!response.ok) {
-      throw new Error('Failed to get runtime settings');
+      throw new Error('获取运行设置失败');
     }
     return response.json();
   },
@@ -196,7 +196,7 @@ export const api = {
       body: JSON.stringify(patch || {}),
     });
     if (!response.ok) {
-      throw new Error('Failed to update runtime settings');
+      throw new Error('更新运行设置失败');
     }
     return response.json();
   },
@@ -207,7 +207,7 @@ export const api = {
   async getRuntimeSettingsDefaults() {
     const response = await authFetch(`${API_BASE}/api/settings/defaults`);
     if (!response.ok) {
-      throw new Error('Failed to get runtime settings defaults');
+      throw new Error('获取默认运行设置失败');
     }
     return response.json();
   },
@@ -220,7 +220,7 @@ export const api = {
       method: 'POST',
     });
     if (!response.ok) {
-      throw new Error('Failed to reset runtime settings');
+      throw new Error('重置运行设置失败');
     }
     return response.json();
   },
@@ -231,7 +231,7 @@ export const api = {
   async exportRuntimeSettings() {
     const response = await authFetch(`${API_BASE}/api/settings/export`);
     if (!response.ok) {
-      throw new Error('Failed to export runtime settings');
+      throw new Error('导出运行设置失败');
     }
     return response.json();
   },
@@ -249,7 +249,7 @@ export const api = {
       body: JSON.stringify(config || {}),
     });
     if (!response.ok) {
-      throw new Error('Failed to import runtime settings');
+      throw new Error('导入运行设置失败');
     }
     return response.json();
   },
@@ -262,7 +262,7 @@ export const api = {
       `${API_BASE}/api/conversations/${conversationId}`
     );
     if (!response.ok) {
-      throw new Error('Failed to get conversation');
+      throw new Error('获取对话失败');
     }
     return response.json();
   },
@@ -282,7 +282,7 @@ export const api = {
       }
     );
     if (!response.ok) {
-      throw new Error('Failed to send message');
+      throw new Error('发送消息失败');
     }
     return response.json();
   },
@@ -298,7 +298,7 @@ export const api = {
       }
     );
     if (!response.ok) {
-      throw new Error('Failed to delete conversation');
+      throw new Error('删除对话失败');
     }
     return response.json();
   },
@@ -311,7 +311,7 @@ export const api = {
       method: 'DELETE',
     });
     if (!response.ok) {
-      throw new Error('Failed to delete all conversations');
+      throw new Error('清空对话失败');
     }
     return response.json();
   },
@@ -334,7 +334,7 @@ export const api = {
       }
     );
     if (!response.ok) {
-      throw new Error('Failed to update conversation title');
+      throw new Error('更新对话标题失败');
     }
     return response.json();
   },
@@ -371,7 +371,7 @@ export const api = {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to send message');
+      throw new Error('发送消息失败');
     }
 
     const reader = response.body.getReader();
@@ -395,7 +395,7 @@ export const api = {
             const event = JSON.parse(data);
             onEvent(event.type, event);
           } catch (e) {
-            console.error('Failed to parse SSE event:', e);
+            console.error('解析 SSE 事件失败:', e);
           }
         }
       }
@@ -420,7 +420,7 @@ export const api = {
   async getDriveStatus() {
     const response = await fetch(`${API_BASE}/api/drive/status`);
     if (!response.ok) {
-      throw new Error('Failed to get drive status');
+      throw new Error('获取 Google Drive 状态失败');
     }
     return response.json();
   },
@@ -441,7 +441,7 @@ export const api = {
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to upload to Google Drive');
+      throw new Error(error.detail || '上传到 Google Drive 失败');
     }
     return response.json();
   },
@@ -453,7 +453,7 @@ export const api = {
   async getVersion() {
     const response = await fetch(`${API_BASE}/api/version`);
     if (!response.ok) {
-      return { version: 'unknown' };
+      return { version: '未知' };
     }
     return response.json();
   },
@@ -477,7 +477,7 @@ export const api = {
   async getSetupStatus() {
     const response = await fetch(`${API_BASE}/api/setup/status`);
     if (!response.ok) {
-      throw new Error('Failed to get setup status');
+      throw new Error('获取初始化状态失败');
     }
     return response.json();
   },
@@ -485,8 +485,9 @@ export const api = {
   /**
    * Save setup configuration. (Public endpoint, only works when setup is required)
    * @param {Object} config - Configuration to save
-   * @param {string} config.openrouter_api_key - OpenRouter API key
-   * @param {string} config.router_type - Router type (openrouter or ollama)
+   * @param {string} config.openrouter_api_key - API Key
+   * @param {string} config.openrouter_api_url - API 地址（OpenAI 兼容）
+   * @param {string} config.router_type - Router type (openrouter)
    * @returns {Promise<{success: boolean, message: string, restart_required: boolean}>}
    */
   async saveSetupConfig(config) {
@@ -499,7 +500,7 @@ export const api = {
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to save configuration');
+      throw new Error(error.detail || '保存配置失败');
     }
     return response.json();
   },
@@ -512,13 +513,13 @@ export const api = {
   async generateSecret(type = 'jwt') {
     const response = await fetch(`${API_BASE}/api/setup/generate-secret?type=${type}`);
     if (!response.ok) {
-      throw new Error('Failed to generate secret');
+      throw new Error('生成密钥失败');
     }
     return response.json();
   },
 
   /**
-   * Get available models from OpenRouter or Ollama. (Public endpoint)
+   * Get available models from configured API. (Public endpoint)
    * @returns {Promise<{models: Array, router_type: string, count: number}>}
    */
   async getModels(options = {}) {
@@ -532,7 +533,7 @@ export const api = {
     const response = await fetch(url);
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to fetch models');
+      throw new Error(error.detail || '获取模型列表失败');
     }
     return response.json();
   },

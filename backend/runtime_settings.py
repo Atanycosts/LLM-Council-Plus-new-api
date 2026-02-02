@@ -31,53 +31,53 @@ SETTINGS_FILE = Path(
 
 DEFAULT_STAGE1_PROMPT_TEMPLATE = "{full_query}"
 
-DEFAULT_STAGE2_PROMPT_TEMPLATE = """You are evaluating different responses to the following question:
+DEFAULT_STAGE2_PROMPT_TEMPLATE = """你正在评估以下问题的不同回答：
 
-Question: {user_query}
+问题：{user_query}
 
-Here are the responses from different models (anonymized):
+以下是不同模型的回答（已匿名）：
 
 {responses_text}
 
-Your task:
-1. First, evaluate each response individually. For each response, explain what it does well and what it does poorly.
-2. Then, at the very end of your response, provide a final ranking.
+你的任务：
+1. 先分别评估每个回答，说明其做得好的地方与不足之处。
+2. 最后在回答末尾给出最终排序。
 
-IMPORTANT: Your final ranking MUST be formatted EXACTLY as follows:
-- Start with the line "FINAL RANKING:" (all caps, with colon)
-- Then list the responses from best to worst as a numbered list
-- Each line should be: number, period, space, then ONLY the response label (e.g., "1. Response A")
-- Do not add any other text or explanations in the ranking section
+重要：最终排序必须严格采用如下格式：
+- 以 "FINAL RANKING:" 开头（全大写，带冒号）
+- 按从好到差列出编号
+- 每行格式：数字 + 点 + 空格 + 仅包含响应标签（例如 "1. Response A"）
+- 排序部分不要添加任何其他文字或解释
 
-Example of the correct format for your ENTIRE response:
+完整示例（包含评审与排序）：
 
-Response A provides good detail on X but misses Y...
-Response B is accurate but lacks depth on Z...
-Response C offers the most comprehensive answer...
+Response A 在 X 上细节充分，但遗漏了 Y...
+Response B 准确，但对 Z 的深度不够...
+Response C 提供了最全面的答案...
 
 FINAL RANKING:
 1. Response C
 2. Response A
 3. Response B
 
-Now provide your evaluation and ranking:"""
+现在请给出你的评估与排序："""
 
 
-DEFAULT_STAGE3_PROMPT_TEMPLATE = """You are the Chairman of an LLM Council. Multiple AI models have provided responses to a user's question, and then ranked each other's responses.
+DEFAULT_STAGE3_PROMPT_TEMPLATE = """你是 LLM 委员会主席。多个 AI 模型已经针对用户问题给出回答，并对彼此的回答进行了排序。
 
-Original Question: {user_query}
+原始问题：{user_query}
 
-STAGE 1 - Individual Responses:
+阶段 1 - 模型回答：
 {stage1_text}
 
 {rankings_block}{tools_text}
 
-Your task as Chairman is to synthesize all of this information into a single, comprehensive, accurate answer to the user's original question. Consider:
-- The individual responses and their insights
-- The peer rankings and what they reveal about response quality (if available)
-- Any patterns of agreement or disagreement
+你的任务是将上述信息综合为一份完整、准确的最终答复。请考虑：
+- 各模型回答的观点与细节
+- 互评排序所反映的质量差异（若有）
+- 一致或分歧之处
 
-Provide a clear, well-reasoned final answer that represents the council's collective wisdom:"""
+请输出清晰、条理化的最终答复，代表委员会的综合结论："""
 
 
 class RuntimeSettings(BaseModel):

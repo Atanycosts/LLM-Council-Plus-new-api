@@ -83,7 +83,7 @@ async def query_model(
         return {
             'error': True,
             'error_type': 'connection',
-            'error_message': f'Cannot connect to Ollama at {OLLAMA_HOST}. Is Ollama running?'
+            'error_message': f'无法连接到 Ollama（{OLLAMA_HOST}）。请确认 Ollama 已启动。'
         }
     except httpx.HTTPStatusError as e:
         logger.error("HTTP error querying model %s: Status %s. Response: %s", model, e.response.status_code, e.response.text)
@@ -92,7 +92,7 @@ async def query_model(
             return {
                 'error': True,
                 'error_type': 'not_found',
-                'error_message': f'Model {model} not found. Try: ollama pull {model}'
+                'error_message': f'未找到模型 {model}。可尝试执行：ollama pull {model}'
             }
         return {
             'error': True,
@@ -104,7 +104,7 @@ async def query_model(
         return {
             'error': True,
             'error_type': 'timeout',
-            'error_message': f'Request timed out after {timeout}s'
+            'error_message': f'请求超时（{timeout}s）'
         }
     except Exception as e:
         logger.error("Unexpected error querying model %s: %s: %s", model, type(e).__name__, e)
@@ -301,7 +301,7 @@ async def query_models_with_stage_timeout(
             results[model] = {
                 'error': True,
                 'error_type': 'stage_timeout',
-                'error_message': f'Model did not respond within stage timeout ({stage_timeout}s)'
+                'error_message': f'模型在阶段超时内未响应（{stage_timeout}s）'
             }
 
     total_time = time.time() - start_time

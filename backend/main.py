@@ -7,6 +7,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+from urllib.parse import urlparse
 import uuid
 import json
 import asyncio
@@ -30,7 +31,7 @@ def get_version() -> str:
     version_file = Path(__file__).parent.parent / "VERSION"
     if version_file.exists():
         return version_file.read_text().strip()
-    return "unknown"
+    return "未知"
 
 
 VERSION = get_version()
@@ -77,7 +78,7 @@ async def get_current_user(
     if not credentials:
         raise HTTPException(
             status_code=401,
-            detail="Missing authorization header",
+            detail="缺少认证头",
             headers={"WWW-Authenticate": "Bearer"}
         )
 
@@ -85,7 +86,7 @@ async def get_current_user(
     if not username:
         raise HTTPException(
             status_code=401,
-            detail="Invalid or expired token",
+            detail="Token 无效或已过期",
             headers={"WWW-Authenticate": "Bearer"}
         )
 
@@ -117,7 +118,17 @@ async def startup_event():
 # Enable CORS for local development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5175", "http://localhost:3000", "http://localhost", "https://localhost", "http://127.0.0.1", "http://127.0.0.1:80"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5175",
+        "http://localhost:3000",
+        "http://localhost:8088",
+        "http://localhost",
+        "https://localhost",
+        "http://127.0.0.1",
+        "http://127.0.0.1:80",
+        "http://127.0.0.1:8088",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -158,7 +169,7 @@ class SendMessageRequest(BaseModel):
         total_size = sum(len(att.content) for att in v)
         max_total_size = 20_000_000  # 20MB total
         if total_size > max_total_size:
-            raise ValueError(f"Total attachment size ({total_size / 1_000_000:.1f}MB) exceeds limit (20MB)")
+            raise ValueError(f"附件总大小（{total_size / 1_000_000:.1f}MB）超过上限（20MB）")
         return v
 
 
@@ -272,6 +283,7 @@ async def import_settings_endpoint(
 class SetupConfigRequest(BaseModel):
     """Request to configure the application."""
     openrouter_api_key: Optional[str] = Field(default=None, min_length=10, max_length=200)
+    openrouter_api_url: Optional[str] = Field(default=None, min_length=8, max_length=300)
     router_type: Optional[str] = Field(default=None, pattern="^(openrouter|ollama)$")
     tavily_api_key: Optional[str] = Field(default=None, max_length=200)  # Optional: for web search
     exa_api_key: Optional[str] = Field(default=None, max_length=200)  # Optional: for AI-powered web search
@@ -286,18 +298,18 @@ class SetupConfigRequest(BaseModel):
 async def get_setup_status():
     """
     Check if the application is properly configured.
-    Returns setup_required=true if API key is missing for OpenRouter mode.
+    Returns setup_required=true if API 地址/Key is missing for OpenAI 兼容模式.
     Also returns web_search_enabled for frontend to show/hide web search option.
     """
     from .config import (
-        ROUTER_TYPE, OPENROUTER_API_KEY,
+        ROUTER_TYPE, OPENROUTER_API_KEY, OPENROUTER_API_URL,
         ENABLE_TAVILY, TAVILY_API_KEY,
         ENABLE_EXA, EXA_API_KEY,
         ENABLE_BRAVE, BRAVE_API_KEY,
     )
     from .web_search import duckduckgo_available
 
-    needs_setup = ROUTER_TYPE == "openrouter" and not OPENROUTER_API_KEY
+    needs_setup = ROUTER_TYPE == "openrouter" and (not OPENROUTER_API_KEY or not OPENROUTER_API_URL)
     # Web search is enabled if either Tavily or Exa is configured
     tavily_enabled = ENABLE_TAVILY and bool(TAVILY_API_KEY)
     exa_enabled = ENABLE_EXA and bool(EXA_API_KEY)
@@ -309,12 +321,13 @@ async def get_setup_status():
         "setup_required": needs_setup,
         "router_type": ROUTER_TYPE,
         "has_api_key": bool(OPENROUTER_API_KEY),
+        "has_api_url": bool(OPENROUTER_API_URL),
         "web_search_enabled": web_search_enabled,
         "duckduckgo_enabled": duckduckgo_enabled,
         "tavily_enabled": tavily_enabled,
         "exa_enabled": exa_enabled,
         "brave_enabled": brave_enabled,
-        "message": "OpenRouter API key required" if needs_setup else "Configuration OK"
+        "message": "需要配置 API 地址与 Key" if needs_setup else "配置正常"
     }
 
 
@@ -337,7 +350,7 @@ async def generate_secret(type: str = "jwt"):
         password = ''.join(secrets.choice(alphabet) for _ in range(12))
         return {"secret": password, "type": "password"}
     else:
-        raise HTTPException(status_code=400, detail="Invalid type. Use 'jwt' or 'password'")
+        raise HTTPException(status_code=400, detail="type 无效，请使用 'jwt' 或 'password'")
 
 
 @app.post("/api/setup/config")
@@ -359,7 +372,7 @@ async def save_setup_config(request: SetupConfigRequest):
     if ROUTER_TYPE == "openrouter" and OPENROUTER_API_KEY:
         raise HTTPException(
             status_code=403,
-            detail="Application is already configured. Edit .env file manually to change settings."
+            detail="应用已完成配置。如需修改，请手动编辑 .env 文件。"
         )
 
     # For Ollama: check if setup was already completed (SETUP_COMPLETE flag in .env)
@@ -369,7 +382,7 @@ async def save_setup_config(request: SetupConfigRequest):
             if "SETUP_COMPLETE=true" in env_content:
                 raise HTTPException(
                     status_code=403,
-                    detail="Application is already configured. Edit .env file manually to change settings."
+                    detail="应用已完成配置。如需修改，请手动编辑 .env 文件。"
                 )
         except HTTPException:
             raise  # Re-raise HTTP exceptions (don't swallow security checks)
@@ -382,6 +395,8 @@ async def save_setup_config(request: SetupConfigRequest):
         updates["ROUTER_TYPE"] = request.router_type
     if request.openrouter_api_key:
         updates["OPENROUTER_API_KEY"] = request.openrouter_api_key
+    if request.openrouter_api_url:
+        updates["OPENROUTER_API_URL"] = request.openrouter_api_url
     if request.tavily_api_key:
         updates["TAVILY_API_KEY"] = request.tavily_api_key
         updates["ENABLE_TAVILY"] = "true"  # Auto-enable when key is provided
@@ -401,7 +416,7 @@ async def save_setup_config(request: SetupConfigRequest):
         updates["AUTH_USERS"] = json.dumps(request.auth_users)
 
     if not updates:
-        raise HTTPException(status_code=400, detail="No configuration provided")
+        raise HTTPException(status_code=400, detail="未提供配置")
 
     # Keep raw values for os.environ (runtime), sanitize only for .env file
     raw_updates = dict(updates)
@@ -463,7 +478,7 @@ async def save_setup_config(request: SetupConfigRequest):
 
     return {
         "success": True,
-        "message": "Configuration saved successfully.",
+        "message": "配置已保存。",
         "restart_required": False
     }
 
@@ -498,7 +513,7 @@ def _parse_price(price_str: str) -> float:
 def _format_price(price_per_million: float) -> str:
     """Format price per million tokens as human-readable string."""
     if price_per_million == 0:
-        return "FREE"
+        return "免费"
     elif price_per_million < 0.01:
         return f"${price_per_million:.4f}/M"
     elif price_per_million < 1:
@@ -562,21 +577,51 @@ def _extract_provider(model_id: str, model_name: str) -> str:
     # Fallback: extract from model name
     if ":" in model_name:
         return model_name.split(":")[0].strip()
-    return "Unknown"
+    return "未知"
+
+
+def _normalize_api_base(api_url: str) -> str:
+    """Normalize API base URL from a full OpenAI-compatible endpoint."""
+    if not api_url:
+        return ""
+    parsed = urlparse(api_url)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    path = (parsed.path or "").rstrip("/")
+    for suffix in ("/v1/chat/completions", "/chat/completions", "/v1/responses", "/responses"):
+        if path.endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+    base = f"{parsed.scheme}://{parsed.netloc}{path}"
+    return base.rstrip("/")
+
+
+def _build_models_endpoints(api_url: str) -> List[str]:
+    """Build candidate models endpoints from a configured API URL."""
+    base = _normalize_api_base(api_url)
+    if not base:
+        return []
+    endpoints: List[str] = []
+    if base.endswith("/v1"):
+        endpoints.append(f"{base}/models")
+    else:
+        endpoints.append(f"{base}/v1/models")
+    endpoints.append(f"{base}/api/v1/models")
+    return list(dict.fromkeys(endpoints))
 
 
 @app.get("/api/models")
 async def get_available_models(router_type: Optional[str] = None):
     """
-    Get available models from OpenRouter or Ollama.
+    Get available models from configured OpenAI 兼容 API or Ollama.
     Returns formatted model list with pricing and capabilities.
     Cached for 5 minutes to reduce API calls.
     """
-    from .config import OPENROUTER_API_KEY, OLLAMA_HOST, MIN_CHAIRMAN_CONTEXT
+    from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL, OLLAMA_HOST, MIN_CHAIRMAN_CONTEXT
 
     effective_router_type = (router_type or ROUTER_TYPE or "openrouter").lower()
     if effective_router_type not in {"openrouter", "ollama"}:
-        raise HTTPException(status_code=400, detail="Invalid router_type. Must be 'openrouter' or 'ollama'.")
+        raise HTTPException(status_code=400, detail="router_type 无效，必须为 'openrouter' 或 'ollama'。")
 
     # Check cache with lock for thread safety
     async with _get_models_cache_lock():
@@ -590,7 +635,7 @@ async def get_available_models(router_type: Optional[str] = None):
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"http://{OLLAMA_HOST}/api/tags", timeout=10.0)
                 if response.status_code != 200:
-                    raise HTTPException(status_code=503, detail="Failed to fetch Ollama models")
+                    raise HTTPException(status_code=503, detail="获取 Ollama 模型失败")
 
                 data = response.json()
                 models = []
@@ -598,14 +643,14 @@ async def get_available_models(router_type: Optional[str] = None):
                     models.append({
                         "id": model["name"],
                         "name": model["name"],
-                        "provider": "Ollama (Local)",
-                        "context": "N/A",
+                        "provider": "Ollama（本地）",
+                        "context": "暂无",
                         "contextLength": MIN_CHAIRMAN_CONTEXT,
-                        "inputPrice": "FREE",
-                        "outputPrice": "FREE",
+                        "inputPrice": "免费",
+                        "outputPrice": "免费",
                         "tier": "free",
                         "isFree": True,
-                        "description": f"Local model: {model.get('details', {}).get('family', 'Unknown')}",
+                        "description": f"本地模型: {model.get('details', {}).get('family', '未知')}",
                         "modality": "text->text",
                     })
 
@@ -616,51 +661,71 @@ async def get_available_models(router_type: Optional[str] = None):
                 return result
 
         except httpx.RequestError as e:
-            raise HTTPException(status_code=503, detail=f"Cannot connect to Ollama: {str(e)}")
+            raise HTTPException(status_code=503, detail=f"无法连接到 Ollama: {str(e)}")
 
     else:
-        # Fetch from OpenRouter API
-        if not OPENROUTER_API_KEY:
+        # Fetch from configured OpenAI-compatible API
+        if not OPENROUTER_API_KEY or not OPENROUTER_API_URL:
             raise HTTPException(
                 status_code=503,
-                detail="OpenRouter API key not configured. Complete setup first."
+                detail="未配置 API 地址或 Key，请先完成初始化。"
             )
 
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    "https://openrouter.ai/api/v1/models",
-                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-                    timeout=30.0
+        models_endpoints = _build_models_endpoints(OPENROUTER_API_URL)
+        if not models_endpoints:
+            raise HTTPException(
+                status_code=503,
+                detail="API 地址无效，请检查 OPENROUTER_API_URL。"
+            )
+
+        last_error: Optional[str] = None
+        data: Optional[Dict[str, Any]] = None
+
+        for url in models_endpoints:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        url,
+                        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                        timeout=30.0
+                    )
+            except httpx.RequestError as e:
+                last_error = str(e)
+                continue
+
+            if response.status_code in {401, 403}:
+                raise HTTPException(
+                    status_code=401,
+                    detail="认证失败，请先配置 API 地址与 Key。"
                 )
 
-                if response.status_code != 200:
-                    raise HTTPException(
-                        status_code=503,
-                        detail=f"OpenRouter API error: {response.status_code}"
-                    )
+            if response.status_code != 200:
+                last_error = f"{response.status_code}"
+                continue
 
-                data = response.json()
-                models = []
+            data = response.json()
+            break
 
-                for model in data.get("data", []):
-                    model_id = model.get("id", "")
-                    model_name = model.get("name", model_id)
+        models: List[Dict[str, Any]] = []
 
-                    # Parse pricing
-                    pricing = model.get("pricing", {})
+        if data:
+            raw_models = data.get("data") or data.get("models") or []
+            for item in raw_models:
+                if isinstance(item, dict) and "pricing" in item:
+                    model_id = item.get("id", "")
+                    model_name = item.get("name", model_id)
+
+                    pricing = item.get("pricing", {})
                     input_price = _parse_price(pricing.get("prompt", "0"))
                     output_price = _parse_price(pricing.get("completion", "0"))
                     is_free = input_price == 0 and output_price == 0
 
-                    # Get context length
-                    context_length = model.get("context_length", 0)
-                    top_provider = model.get("top_provider", {})
+                    context_length = item.get("context_length", 0)
+                    top_provider = item.get("top_provider", {})
                     if top_provider.get("context_length"):
                         context_length = top_provider["context_length"]
 
-                    # Get modality
-                    arch = model.get("architecture", {})
+                    arch = item.get("architecture", {})
                     modality = arch.get("modality", "text->text")
                     input_modalities = arch.get("input_modalities", ["text"])
 
@@ -676,23 +741,100 @@ async def get_available_models(router_type: Optional[str] = None):
                         "outputPriceRaw": output_price,
                         "tier": _get_tier(input_price, output_price, is_free),
                         "isFree": is_free,
-                        "description": model.get("description", "")[:200],  # Truncate long descriptions
+                        "description": item.get("description", "")[:200],
                         "modality": modality,
                         "supportsImages": "image" in input_modalities,
                         "supportsAudio": "audio" in input_modalities,
                     })
+                else:
+                    if isinstance(item, dict):
+                        model_id = item.get("id") or item.get("name") or item.get("model")
+                        model_name = item.get("name") or model_id
+                        context_length = item.get("context_length") or item.get("context")
+                        input_modalities = item.get("input_modalities") or item.get("modalities") or ["text"]
+                        supports_images = "image" in input_modalities
+                        supports_audio = "audio" in input_modalities
+                        description = item.get("description", "")[:200]
+                    else:
+                        model_id = str(item)
+                        model_name = model_id
+                        context_length = None
+                        supports_images = False
+                        supports_audio = False
+                        description = ""
 
-                # Sort by output price (cheapest first), then by name
-                models.sort(key=lambda m: (m["outputPriceRaw"], m["name"]))
+                    if not model_id:
+                        continue
 
-                from .config import MAX_COUNCIL_MODELS
-                result = {"models": models, "router_type": "openrouter", "count": len(models), "max_models": MAX_COUNCIL_MODELS}
-                async with _get_models_cache_lock():
-                    _models_cache[effective_router_type] = {"data": result, "timestamp": time.time()}
-                return result
+                    has_context = isinstance(context_length, int) and context_length > 0
+                    safe_context = int(context_length) if has_context else MIN_CHAIRMAN_CONTEXT
+                    context_display = _format_context(safe_context) if has_context else "未知"
 
-        except httpx.RequestError as e:
-            raise HTTPException(status_code=503, detail=f"Failed to fetch models: {str(e)}")
+                    models.append({
+                        "id": model_id,
+                        "name": model_name or model_id,
+                        "provider": _extract_provider(model_id, model_name or model_id),
+                        "context": context_display,
+                        "contextLength": safe_context,
+                        "inputPrice": "未知",
+                        "outputPrice": "未知",
+                        "inputPriceRaw": 0.0,
+                        "outputPriceRaw": 0.0,
+                        "tier": "standard",
+                        "isFree": False,
+                        "description": description,
+                        "modality": "text->text",
+                        "supportsImages": supports_images,
+                        "supportsAudio": supports_audio,
+                    })
+
+        if not models:
+            from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
+            fallback_models = []
+            if COUNCIL_MODELS:
+                fallback_models.extend(COUNCIL_MODELS)
+            if CHAIRMAN_MODEL:
+                fallback_models.append(CHAIRMAN_MODEL)
+
+            seen = set()
+            for model_id in fallback_models:
+                if not model_id or model_id in seen:
+                    continue
+                seen.add(model_id)
+                models.append({
+                    "id": model_id,
+                    "name": model_id,
+                    "provider": _extract_provider(model_id, model_id),
+                    "context": "未知",
+                    "contextLength": MIN_CHAIRMAN_CONTEXT,
+                    "inputPrice": "未知",
+                    "outputPrice": "未知",
+                    "inputPriceRaw": 0.0,
+                    "outputPriceRaw": 0.0,
+                    "tier": "standard",
+                    "isFree": False,
+                    "description": "来自本地配置的模型清单",
+                    "modality": "text->text",
+                })
+
+        if not models:
+            detail = "模型列表不可用，请检查 API 地址是否支持 /v1/models，或在 .env 中配置 COUNCIL_MODELS。"
+            if last_error:
+                detail = f"{detail}（最后错误: {last_error}）"
+            raise HTTPException(status_code=503, detail=detail)
+
+        models.sort(key=lambda m: (m.get("outputPriceRaw", 0), m.get("name", "")))
+
+        from .config import MAX_COUNCIL_MODELS
+        result = {
+            "models": models,
+            "router_type": "openrouter",
+            "count": len(models),
+            "max_models": MAX_COUNCIL_MODELS
+        }
+        async with _get_models_cache_lock():
+            _models_cache[effective_router_type] = {"data": result, "timestamp": time.time()}
+        return result
 
 
 # ==================== Auth Endpoints ====================
@@ -720,7 +862,7 @@ async def validate_token_endpoint(
     Token should be passed in Authorization header as 'Bearer <token>'.
     """
     if not credentials:
-        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+        raise HTTPException(status_code=401, detail="缺少或无效的认证头")
 
     result = validate_auth_token(credentials.credentials)
 
@@ -782,7 +924,7 @@ async def create_conversation(
             if context_length < MIN_CHAIRMAN_CONTEXT:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Chairman model {request.chairman} has insufficient context length ({context_length}). Minimum required: {MIN_CHAIRMAN_CONTEXT}"
+                    detail=f"主席模型 {request.chairman} 的上下文长度不足（{context_length}），最低要求：{MIN_CHAIRMAN_CONTEXT}"
                 )
 
     conversation_id = str(uuid.uuid4())
@@ -807,7 +949,7 @@ async def get_conversation(
     """Get a specific conversation with all its messages. Requires authentication."""
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise HTTPException(status_code=404, detail="未找到对话")
     return conversation
 
 
@@ -819,7 +961,7 @@ async def delete_conversation(
     """Delete a specific conversation. Requires authentication."""
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise HTTPException(status_code=404, detail="未找到对话")
     storage.delete_conversation(conversation_id)
     return {"status": "deleted", "id": conversation_id}
 
@@ -836,7 +978,7 @@ async def update_title(
     """
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise HTTPException(status_code=404, detail="未找到对话")
 
     storage.update_conversation_title(conversation_id, request.title)
 
@@ -866,13 +1008,13 @@ async def upload_file(
     """
     # Check file extension
     supported = get_supported_extensions()
-    filename = file.filename or "unknown"
+    filename = file.filename or "未知"
     ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
 
     if ext not in supported:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type. Supported: {', '.join(supported)}"
+            detail=f"不支持的文件类型。支持：{', '.join(supported)}"
         )
 
     try:
@@ -884,7 +1026,7 @@ async def upload_file(
         if is_image_file(filename) and len(file_content) > max_image_size:
             raise HTTPException(
                 status_code=400,
-                detail=f"Image file too large. Maximum size is 20MB."
+                detail="图片文件过大，最大 20MB。"
             )
 
         # Parse the file
@@ -918,7 +1060,7 @@ async def upload_file(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error parsing file: {str(e)}"
+            detail=f"解析文件失败: {str(e)}"
         )
 
 
@@ -1023,7 +1165,7 @@ async def send_message(
     # Check if conversation exists
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise HTTPException(status_code=404, detail="未找到对话")
 
     # Check if this is the first message
     is_first_message = len(conversation["messages"]) == 0
@@ -1084,7 +1226,7 @@ async def send_message_stream(
     # Check if conversation exists
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise HTTPException(status_code=404, detail="未找到对话")
 
     # Check if this is the first message
     is_first_message = len(conversation["messages"]) == 0
@@ -1429,7 +1571,7 @@ async def drive_upload(
     if not is_drive_configured():
         raise HTTPException(
             status_code=503,
-            detail="Google Drive is not configured. Set GOOGLE_DRIVE_FOLDER_ID and add service account credentials."
+            detail="Google Drive 未配置。请设置 GOOGLE_DRIVE_FOLDER_ID 并添加服务账号凭据。"
         )
 
     try:
@@ -1445,7 +1587,7 @@ async def drive_upload(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to upload to Google Drive: {str(e)}"
+            detail=f"上传到 Google Drive 失败: {str(e)}"
         )
 
 

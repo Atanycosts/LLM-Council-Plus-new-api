@@ -38,7 +38,7 @@ export const useAuthStore = create(
         const isValid = now < expiresAt;
 
         if (!isValid) {
-          // Auto-logout on expired session
+          // 会话过期自动退出
           set({
             isAuthenticated: false,
             username: null,

@@ -10,15 +10,30 @@ function safeParseJson(text) {
   }
 }
 
+const TITLE_PREFIXES = ['Title: ', '标题: ', '标题：'];
+const URL_PREFIXES = ['URL: ', '链接: ', '链接：'];
+const SUMMARY_PREFIXES = ['Summary: ', '摘要: ', '摘要：'];
+const CONTENT_PREFIXES = ['Content:', '内容: ', '内容：'];
+
+function stripPrefix(line, prefixes) {
+  if (!line) return '';
+  for (const p of prefixes) {
+    if (line.startsWith(p)) {
+      return line.slice(p.length).trim();
+    }
+  }
+  return line.trim();
+}
+
 function parseResultBlock(block) {
   const lines = block.split('\n');
-  const titleLine = lines.find((l) => l.startsWith('Title: '));
-  const urlLine = lines.find((l) => l.startsWith('URL: '));
-  const summaryIdx = lines.findIndex((l) => l.startsWith('Summary: '));
-  const contentIdx = lines.findIndex((l) => l.startsWith('Content:'));
+  const titleLine = lines.find((l) => TITLE_PREFIXES.some((p) => l.startsWith(p)));
+  const urlLine = lines.find((l) => URL_PREFIXES.some((p) => l.startsWith(p)));
+  const summaryIdx = lines.findIndex((l) => SUMMARY_PREFIXES.some((p) => l.startsWith(p)));
+  const contentIdx = lines.findIndex((l) => CONTENT_PREFIXES.some((p) => l.startsWith(p)));
 
-  const title = titleLine ? titleLine.replace('Title: ', '').trim() : '';
-  const url = urlLine ? urlLine.replace('URL: ', '').trim() : '';
+  const title = titleLine ? stripPrefix(titleLine, TITLE_PREFIXES) : '';
+  const url = urlLine ? stripPrefix(urlLine, URL_PREFIXES) : '';
 
   let kind = '';
   let body = '';
@@ -27,7 +42,7 @@ function parseResultBlock(block) {
     body = lines.slice(contentIdx + 1).join('\n').trim();
   } else if (summaryIdx >= 0) {
     kind = 'summary';
-    body = lines.slice(summaryIdx).join('\n').replace(/^Summary:\s*/, '').trim();
+    body = stripPrefix(lines.slice(summaryIdx).join('\n'), SUMMARY_PREFIXES);
   }
 
   return { title, url, kind, body };
@@ -36,15 +51,15 @@ function parseResultBlock(block) {
 function parseWebSearchText(text) {
   if (!text || typeof text !== 'string') return null;
 
-  // Split blocks on "Result N:" boundaries.
+  // 按 “Result N:” 或 “结果 N:” 边界拆分块
   const blocks = text
-    .split(/\n\n(?=Result\s+\d+:)/g)
+    .split(/\n\n(?=(Result\s+\d+:|结果\s+\d+[:：]))/g)
     .map((b) => b.trim())
     .filter(Boolean);
 
   const parsed = [];
   for (const block of blocks) {
-    if (!block.startsWith('Result ')) continue;
+    if (!(block.startsWith('Result ') || block.startsWith('结果 '))) continue;
     parsed.push(parseResultBlock(block));
   }
 
@@ -71,7 +86,7 @@ function normalizeToolName(tool) {
   }
   if (tool === 'tavily_search') return 'Tavily';
   if (tool === 'exa_search') return 'Exa';
-  if (tool === 'web_search') return 'Web Search';
+  if (tool === 'web_search') return '网页搜索';
   return tool;
 }
 
@@ -112,9 +127,9 @@ export default function SearchContext({ toolOutputs }) {
         className="search-context-toggle"
         onClick={() => setIsOpen((v) => !v)}
       >
-        <span className="search-context-title">Search context</span>
+        <span className="search-context-title">搜索上下文</span>
         <span className="search-context-meta">
-          {entries.length} source{entries.length === 1 ? '' : 's'}
+          {entries.length} 个来源
         </span>
         <span className="search-context-caret">{isOpen ? '▾' : '▸'}</span>
       </button>
@@ -145,7 +160,7 @@ export default function SearchContext({ toolOutputs }) {
                                 {r.title || r.url}
                               </a>
                             ) : (
-                              <span>{r.title || 'Untitled result'}</span>
+                              <span>{r.title || '未命名结果'}</span>
                             )}
                           </span>
                           {domain && <span className="search-context-result-domain">{domain}</span>}

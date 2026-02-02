@@ -5,14 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Router type: 'openrouter' or 'ollama'
+# Router type: 'openrouter' or 'ollama' (本项目仅对接 OpenAI 兼容 new-api)
 ROUTER_TYPE = os.getenv("ROUTER_TYPE", "openrouter").lower()
 
-# OpenRouter settings
+# OpenAI 兼容 API 设置（new-api）
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_API_URL = os.getenv(
     "OPENROUTER_API_URL",
-    "https://openrouter.ai/api/v1/chat/completions"
+    ""
 )
 
 # Ollama settings
@@ -93,21 +93,21 @@ GOOGLE_DRIVE_ENABLED = bool(GOOGLE_DRIVE_FOLDER_ID)
 # Validate router type at import time (safe)
 if ROUTER_TYPE not in ["openrouter", "ollama"]:
     raise ValueError(
-        f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter' or 'ollama'"
+        f"ROUTER_TYPE 无效: {ROUTER_TYPE}。必须为 'openrouter' 或 'ollama'"
     )
 
 
 def validate_openrouter_config():
     """
-    Validate OpenRouter configuration (called lazily when making API calls).
+    Validate OpenAI 兼容 API configuration (called lazily when making API calls).
 
     Raises:
-        ValueError: If using OpenRouter without API key
+        ValueError: If using OpenAI 兼容 API without required config
     """
-    if ROUTER_TYPE == "openrouter" and not OPENROUTER_API_KEY:
+    if ROUTER_TYPE == "openrouter" and (not OPENROUTER_API_KEY or not OPENROUTER_API_URL):
         raise ValueError(
-            "OPENROUTER_API_KEY is required when ROUTER_TYPE=openrouter. "
-            "Get your key at https://openrouter.ai/ or use ROUTER_TYPE=ollama for local models."
+            "使用 OpenAI 兼容 API 时必须提供 API 地址与 Key。"
+            "请在 .env 或初始化向导中配置 OPENROUTER_API_URL 与 OPENROUTER_API_KEY。"
         )
 
 
@@ -132,11 +132,11 @@ def reload_config():
     # Router type
     ROUTER_TYPE = os.getenv("ROUTER_TYPE", "openrouter").lower()
 
-    # OpenRouter settings
+    # OpenAI 兼容 API 设置（new-api）
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
     OPENROUTER_API_URL = os.getenv(
         "OPENROUTER_API_URL",
-        "https://openrouter.ai/api/v1/chat/completions"
+        ""
     )
 
     # Ollama settings

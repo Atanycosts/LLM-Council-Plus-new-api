@@ -18,20 +18,20 @@ const MIN_CHAIRMAN_CONTEXT = 25000;
 // Built-in presets (will be merged with dynamic "Last Used")
 const BUILT_IN_PRESETS = {
   ultra: {
-    name: 'Ultra',
-    description: 'Top-tier models for best quality',
+    name: '旗舰',
+    description: '高质量优选模型',
     modelPatterns: ['claude-opus', 'gpt-5.1', 'gemini-3-pro', 'gpt-4o'],
     chairmanPattern: 'gemini-3-pro',
   },
   budget: {
-    name: 'Budget',
-    description: 'Cost-effective models',
+    name: '经济',
+    description: '更优性价比模型',
     modelPatterns: ['grok-4', 'gpt-5-mini', 'gemini-2.5-flash', 'deepseek'],
     chairmanPattern: 'gemini-2.5-flash',
   },
   free: {
-    name: 'Free',
-    description: 'No cost - completely free models',
+    name: '免费',
+    description: '零成本：全免费模型',
     tierFilter: 'free',
     maxModels: 7,
   },
@@ -61,7 +61,7 @@ function saveSavedPresets(presets) {
   try {
     localStorage.setItem(SAVED_PRESETS_KEY, JSON.stringify(presets));
   } catch (e) {
-    console.error('Failed to save presets:', e);
+    console.error('保存预设失败:', e);
   }
 }
 
@@ -71,12 +71,12 @@ function generatePresetId() {
 
 // Sort options
 const SORT_OPTIONS = [
-  { value: 'price-asc', label: 'Price: Low to High' },
-  { value: 'price-desc', label: 'Price: High to Low' },
-  { value: 'name-asc', label: 'Name: A to Z' },
-  { value: 'name-desc', label: 'Name: Z to A' },
-  { value: 'context-desc', label: 'Context: Largest First' },
-  { value: 'context-asc', label: 'Context: Smallest First' },
+  { value: 'price-asc', label: '价格：从低到高' },
+  { value: 'price-desc', label: '价格：从高到低' },
+  { value: 'name-asc', label: '名称：A 到 Z' },
+  { value: 'name-desc', label: '名称：Z 到 A' },
+  { value: 'context-desc', label: '上下文：从大到小' },
+  { value: 'context-asc', label: '上下文：从小到大' },
 ];
 
 export default function ModelSelector({ isOpen, onClose, onConfirm }) {
@@ -87,7 +87,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
   const [selectedModels, setSelectedModels] = useState([]);
   const [chairmanModel, setChairmanModel] = useState('');
   const [executionMode, setExecutionMode] = useState('full'); // chat_only | chat_ranking | full
-  const [routerType, setRouterType] = useState('openrouter'); // openrouter | ollama
+  const [routerType, setRouterType] = useState('openrouter'); // new-api (OpenAI 兼容)
   const [activePreset, setActivePreset] = useState(null);
   const [maxModels, setMaxModels] = useState(DEFAULT_MAX_MODELS);
   const [councilSize, setCouncilSize] = useState(Math.min(DEFAULT_MAX_MODELS, 5));
@@ -117,20 +117,130 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
     }
   }, []);
 
+  const loadModels = useCallback(async (forcedRouterType) => {
+    setIsLoadingModels(true);
+    setLoadError(null);
+    try {
+      const data = await api.getModels({ routerType: forcedRouterType || routerType });
+      setAllModels(data.models || []);
+      if (data.router_type) {
+        setRouterType(data.router_type);
+      }
+      // Get max_models from backend config if provided
+      if (data.max_models) {
+        setMaxModels(data.max_models);
+      }
+    } catch (error) {
+      console.error('加载模型失败:', error);
+      setLoadError(error.message);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  }, [routerType]);
+
+  const applyPreset = useCallback((presetKey) => {
+    if (presetKey === 'last') {
+      // Already handled in loadLastUsedSelection
+      return;
+    }
+
+    const preset = BUILT_IN_PRESETS[presetKey];
+    if (!preset) return;
+
+    let selectedIds = [];
+    let chairmanId = '';
+
+    if (preset.tierFilter) {
+      // Select by tier (e.g., free models)
+      const tierModels = allModels.filter((m) => m.tier === preset.tierFilter);
+      const presetMax = Math.min(preset.maxModels || 7, maxModels);
+      selectedIds = tierModels.slice(0, presetMax).map((m) => m.id);
+      chairmanId = selectedIds[0] || '';
+    } else if (preset.modelPatterns) {
+      // Select by pattern matching
+      for (const pattern of preset.modelPatterns) {
+        if (selectedIds.length >= maxModels) break;
+        const match = allModels.find(
+          (m) => m.id.toLowerCase().includes(pattern.toLowerCase()) && !selectedIds.includes(m.id)
+        );
+        if (match) {
+          selectedIds.push(match.id);
+        }
+      }
+      // Find chairman
+      if (preset.chairmanPattern) {
+        const chairman = allModels.find((m) =>
+          m.id.toLowerCase().includes(preset.chairmanPattern.toLowerCase())
+        );
+        if (chairman) {
+          chairmanId = chairman.id;
+          if (!selectedIds.includes(chairmanId) && selectedIds.length < maxModels) {
+            selectedIds.push(chairmanId);
+          }
+        }
+      }
+    }
+
+    if (selectedIds.length > 0) {
+      setSelectedModels(selectedIds);
+      setChairmanModel(chairmanId || selectedIds[0]);
+      setActivePreset(presetKey);
+      // Auto-scroll to first selected model
+      setTimeout(() => scrollToModel(selectedIds[0]), 100);
+    }
+  }, [allModels, maxModels, scrollToModel]);
+
+  const loadLastUsedSelection = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(LAST_USED_KEY);
+      if (saved) {
+        const { models, chairman, executionMode: savedMode, routerType: savedRouterType } = JSON.parse(saved);
+
+        if (savedRouterType && savedRouterType !== routerType) {
+          if (savedRouterType === 'openrouter') {
+            setRouterType(savedRouterType);
+            loadModels(savedRouterType);
+            return;
+          }
+          setLoadError('当前仅支持 New API（OpenAI 兼容）。');
+        }
+        // Verify models still exist
+        const validModels = models.filter((m) => allModels.some((am) => am.id === m));
+        const validChairman = allModels.some((am) => am.id === chairman) ? chairman : '';
+
+        if (validModels.length >= MIN_MODELS && validChairman) {
+          setSelectedModels(validModels);
+          setChairmanModel(validChairman);
+          if (savedMode) {
+            setExecutionMode(savedMode);
+          }
+          setActivePreset('last');
+          // Auto-scroll to first selected model
+          setTimeout(() => scrollToModel(validModels[0]), 100);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('加载上次选择失败:', e);
+    }
+    // Default to free preset if no valid last selection
+    applyPreset('free');
+  }, [allModels, applyPreset, loadModels, routerType, scrollToModel]);
+
   // Load models when modal opens
   useEffect(() => {
     if (isOpen) {
       setSavedPresets(loadSavedPresets());
       loadModels();
     }
-  }, [isOpen]);
+  }, [isOpen, loadModels]);
 
   // Load last used selection when models are loaded
   useEffect(() => {
     if (allModels.length > 0 && isOpen) {
       loadLastUsedSelection();
     }
-  }, [allModels, isOpen]);
+  }, [allModels, isOpen, loadLastUsedSelection]);
 
   // Clamp council size when maxModels changes.
   useEffect(() => {
@@ -150,7 +260,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
     const validChairman = allModels.some((am) => am.id === preset.chairman) ? preset.chairman : '';
 
     if (validModels.length < MIN_MODELS || !validChairman) {
-      setLoadError('Preset models are not available for the selected router.');
+      setLoadError('当前来源下预设模型不可用。');
       return;
     }
 
@@ -162,61 +272,6 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
     setSelectedPresetId(preset.id);
     setTimeout(() => scrollToModel(validModels[0]), 100);
   }, [pendingPreset, allModels, isOpen, maxModels, scrollToModel]);
-
-  const loadModels = async (forcedRouterType) => {
-    setIsLoadingModels(true);
-    setLoadError(null);
-    try {
-      const data = await api.getModels({ routerType: forcedRouterType || routerType });
-      setAllModels(data.models || []);
-      if (data.router_type) {
-        setRouterType(data.router_type);
-      }
-      // Get max_models from backend config if provided
-      if (data.max_models) {
-        setMaxModels(data.max_models);
-      }
-    } catch (error) {
-      console.error('Failed to load models:', error);
-      setLoadError(error.message);
-    } finally {
-      setIsLoadingModels(false);
-    }
-  };
-
-  const loadLastUsedSelection = () => {
-    try {
-      const saved = localStorage.getItem(LAST_USED_KEY);
-      if (saved) {
-        const { models, chairman, executionMode: savedMode, routerType: savedRouterType } = JSON.parse(saved);
-
-        if (savedRouterType && savedRouterType !== routerType) {
-          setRouterType(savedRouterType);
-          loadModels(savedRouterType);
-          return;
-        }
-        // Verify models still exist
-        const validModels = models.filter((m) => allModels.some((am) => am.id === m));
-        const validChairman = allModels.some((am) => am.id === chairman) ? chairman : '';
-
-        if (validModels.length >= MIN_MODELS && validChairman) {
-          setSelectedModels(validModels);
-          setChairmanModel(validChairman);
-          if (savedMode) {
-            setExecutionMode(savedMode);
-          }
-          setActivePreset('last');
-          // Auto-scroll to first selected model
-          setTimeout(() => scrollToModel(validModels[0]), 100);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load last selection:', e);
-    }
-    // Default to free preset if no valid last selection
-    applyPreset('free');
-  };
 
   const saveLastUsedSelection = (models, chairman, mode, rt) => {
     try {
@@ -235,7 +290,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
         localStorage.setItem(LAST_ROUTER_TYPE_KEY, rt);
       }
     } catch (e) {
-      console.error('Failed to save last selection:', e);
+      console.error('保存上次选择失败:', e);
     }
   };
 
@@ -304,58 +359,6 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
       .map((id) => allModels.find((m) => m.id === id))
       .filter(Boolean);
   }, [selectedModels, allModels]);
-
-  const applyPreset = (presetKey) => {
-    if (presetKey === 'last') {
-      // Already handled in loadLastUsedSelection
-      return;
-    }
-
-    const preset = BUILT_IN_PRESETS[presetKey];
-    if (!preset) return;
-
-    let selectedIds = [];
-    let chairmanId = '';
-
-    if (preset.tierFilter) {
-      // Select by tier (e.g., free models)
-      const tierModels = allModels.filter((m) => m.tier === preset.tierFilter);
-      const presetMax = Math.min(preset.maxModels || 7, maxModels);
-      selectedIds = tierModels.slice(0, presetMax).map((m) => m.id);
-      chairmanId = selectedIds[0] || '';
-    } else if (preset.modelPatterns) {
-      // Select by pattern matching
-      for (const pattern of preset.modelPatterns) {
-        if (selectedIds.length >= maxModels) break;
-        const match = allModels.find(
-          (m) => m.id.toLowerCase().includes(pattern.toLowerCase()) && !selectedIds.includes(m.id)
-        );
-        if (match) {
-          selectedIds.push(match.id);
-        }
-      }
-      // Find chairman
-      if (preset.chairmanPattern) {
-        const chairman = allModels.find((m) =>
-          m.id.toLowerCase().includes(preset.chairmanPattern.toLowerCase())
-        );
-        if (chairman) {
-          chairmanId = chairman.id;
-          if (!selectedIds.includes(chairmanId) && selectedIds.length < maxModels) {
-            selectedIds.push(chairmanId);
-          }
-        }
-      }
-    }
-
-    if (selectedIds.length > 0) {
-      setSelectedModels(selectedIds);
-      setChairmanModel(chairmanId || selectedIds[0]);
-      setActivePreset(presetKey);
-      // Auto-scroll to first selected model
-      setTimeout(() => scrollToModel(selectedIds[0]), 100);
-    }
-  };
 
   const toggleModel = (modelId) => {
     setActivePreset(null);
@@ -540,6 +543,10 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
   };
 
   const handleRouterTypeChange = async (nextType) => {
+    if (nextType !== 'openrouter') {
+      setLoadError('当前仅支持 New API（OpenAI 兼容）。');
+      return;
+    }
     setRouterType(nextType);
     setSelectedModels([]);
     setChairmanModel('');
@@ -553,11 +560,11 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
   const handleSavePreset = () => {
     const name = (newPresetName || '').trim();
     if (!name) {
-      setLoadError('Preset name is required.');
+      setLoadError('请输入预设名称。');
       return;
     }
     if (selectedModels.length < MIN_MODELS || !chairmanModel) {
-      setLoadError(`Select at least ${MIN_MODELS} models and a Chairman before saving a preset.`);
+      setLoadError(`保存预设前请至少选择 ${MIN_MODELS} 个模型并指定主席。`);
       return;
     }
 
@@ -585,6 +592,10 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
     if (!preset) return;
 
     if (preset.routerType && preset.routerType !== routerType) {
+      if (preset.routerType !== 'openrouter') {
+        setLoadError('当前仅支持 New API（OpenAI 兼容）。');
+        return;
+      }
       setPendingPreset(preset);
       await handleRouterTypeChange(preset.routerType);
       return;
@@ -596,7 +607,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
   const handleDeletePreset = () => {
     const preset = savedPresets.find((p) => p.id === selectedPresetId);
     if (!preset) return;
-    if (!window.confirm(`Delete preset "${preset.name}"?`)) return;
+    if (!window.confirm(`确认删除预设 "${preset.name}"？`)) return;
 
     const next = savedPresets.filter((p) => p.id !== selectedPresetId);
     setSavedPresets(next);
@@ -620,7 +631,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="model-selector-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Configure Council</h2>
+          <h2>配置委员会</h2>
           <button className="close-button" onClick={onClose}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -631,15 +642,15 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
 
         {/* Presets */}
         <div className="presets-section">
-          <h3>Quick Presets</h3>
+          <h3>快捷预设</h3>
           <div className="presets-grid">
             {hasLastUsed && (
               <button
                 className={`preset-button last-used ${activePreset === 'last' ? 'active' : ''}`}
                 onClick={() => loadLastUsedSelection()}
               >
-                <span className="preset-name">Last Used</span>
-                <span className="preset-description">Your previous selection</span>
+                <span className="preset-name">上次使用</span>
+                <span className="preset-description">上次选择</span>
               </button>
             )}
             {Object.entries(BUILT_IN_PRESETS).map(([key, preset]) => (
@@ -663,7 +674,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               onChange={(e) => setSelectedPresetId(e.target.value)}
               style={{ minWidth: '240px' }}
             >
-              <option value="">Saved presets…</option>
+              <option value="">已保存的预设…</option>
               {savedPresets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -677,7 +688,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               disabled={!selectedPresetId || isLoadingModels}
               type="button"
             >
-              Load
+              加载
             </button>
             <button
               className="preset-button"
@@ -686,7 +697,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               disabled={!selectedPresetId}
               type="button"
             >
-              Delete
+              删除
             </button>
           </div>
 
@@ -694,7 +705,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
             <input
               value={newPresetName}
               onChange={(e) => setNewPresetName(e.target.value)}
-              placeholder="Preset name…"
+              placeholder="预设名称…"
               style={{
                 background: 'rgba(255,255,255,0.06)',
                 border: '1px solid rgba(255,255,255,0.12)',
@@ -711,7 +722,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               disabled={isLoadingModels}
               type="button"
             >
-              Save current
+              保存当前
             </button>
           </div>
         </div>
@@ -720,20 +731,20 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
         {selectedModelObjects.length > 0 && (
           <div className="selected-models-section">
             <h3>
-              Selected Models
+              已选模型
               <span className="selection-count">
                 ({selectedModels.length}/{maxModels})
-                {isMaxReached && <span className="max-reached"> - Max reached</span>}
+                {isMaxReached && <span className="max-reached"> - 已达上限</span>}
               </span>
             </h3>
             <div className="selected-models-list">
               {selectedModelObjects.map((model, index) => {
                 const canChairman = canBeChairman(model);
                 const chipChairmanTitle = model.id === chairmanModel
-                  ? 'Current Chairman'
+                  ? '当前主席'
                   : canChairman
-                    ? 'Set as Chairman'
-                    : `Context too small (${model.context}). Requires 25K+`;
+                    ? '设为主席'
+                    : `上下文过小（${model.context}），需 ≥25K`;
                 return (
                 <div
                   key={model.id}
@@ -777,44 +788,39 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
 
         {/* Execution Mode */}
         <div className="selected-models-section" style={{ paddingTop: 0 }}>
-          <h3>Execution Mode</h3>
+          <h3>执行模式</h3>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <select
               value={executionMode}
               onChange={(e) => setExecutionMode(e.target.value)}
               className="model-selector-select"
             >
-              <option value="full">Full (Stage 1 + 2 + 3)</option>
-              <option value="chat_ranking">Chat + Ranking (Stage 1 + 2)</option>
-              <option value="chat_only">Chat Only (Stage 1)</option>
+              <option value="full">完整（阶段 1 + 2 + 3）</option>
+              <option value="chat_ranking">对话 + 排序（阶段 1 + 2）</option>
+              <option value="chat_only">仅对话（阶段 1）</option>
             </select>
             <div style={{ opacity: 0.8, fontSize: '13px', lineHeight: 1.4 }}>
-              Choose how deep the council deliberates for this conversation.
+              选择本次对话的评审深度。
             </div>
           </div>
         </div>
 
-        {/* Router */}
+        {/* Provider */}
         <div className="selected-models-section" style={{ paddingTop: 0 }}>
-          <h3>Router</h3>
+          <h3>模型来源</h3>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <select
-              value={routerType}
-              onChange={(e) => handleRouterTypeChange(e.target.value)}
-              className="model-selector-select"
-            >
-              <option value="openrouter">OpenRouter</option>
-              <option value="ollama">Ollama (Local)</option>
-            </select>
+            <div className="model-selector-select" style={{ cursor: 'default' }}>
+              New API（OpenAI 兼容）
+            </div>
             <div style={{ opacity: 0.8, fontSize: '13px', lineHeight: 1.4 }}>
-              Select the provider for this conversation. No fallback.
+              仅使用你配置的地址与 Key。
             </div>
           </div>
         </div>
 
         {/* Council Size */}
         <div className="selected-models-section" style={{ paddingTop: 0 }}>
-          <h3>Council Size</h3>
+          <h3>委员会规模</h3>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               type="range"
@@ -826,7 +832,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               style={{ minWidth: '240px' }}
             />
             <div style={{ opacity: 0.9, fontSize: '13px' }}>
-              {selectedModels.length} selected (target {councilSize}, min {MIN_MODELS}, max {maxModels})
+              已选 {selectedModels.length}（目标 {councilSize}，最少 {MIN_MODELS}，最多 {maxModels}）
             </div>
             <button
               className="preset-button"
@@ -834,9 +840,9 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               onClick={luckyPick}
               disabled={isLoadingModels}
               type="button"
-              title="Randomize council composition"
+              title="随机选择模型组合"
             >
-              I’m Feeling Lucky
+              随机推荐
             </button>
           </div>
         </div>
@@ -852,7 +858,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               <input
                 type="text"
                 className="search-input"
-                placeholder="Search models..."
+                placeholder="搜索模型..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -863,7 +869,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               value={providerFilter}
               onChange={(e) => setProviderFilter(e.target.value)}
             >
-              <option value="">All Providers</option>
+              <option value="">全部提供方</option>
               {providers.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -876,11 +882,11 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
               value={tierFilter}
               onChange={(e) => setTierFilter(e.target.value)}
             >
-              <option value="">All Tiers</option>
-              <option value="premium">Premium</option>
-              <option value="standard">Standard</option>
-              <option value="budget">Budget</option>
-              <option value="free">Free</option>
+              <option value="">全部档位</option>
+              <option value="premium">高级</option>
+              <option value="standard">标准</option>
+              <option value="budget">经济</option>
+              <option value="free">免费</option>
             </select>
 
             <label className="free-only-toggle">
@@ -889,7 +895,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                 checked={freeOnlyFilter}
                 onChange={(e) => setFreeOnlyFilter(e.target.checked)}
               />
-              <span>Free only</span>
+              <span>仅免费</span>
             </label>
           </div>
 
@@ -907,11 +913,11 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
             </select>
 
             <button className="clear-filters-btn" onClick={clearFilters}>
-              Clear Filters
+              清空筛选
             </button>
 
             <span className="models-count">
-              {filteredModels.length} of {allModels.length} models
+              已筛选 {filteredModels.length} / {allModels.length} 个模型
             </span>
           </div>
         </div>
@@ -919,21 +925,21 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
         {/* Model Selection */}
         <div className="models-section">
           <h3>
-            Select Council Models
+            选择委员会模型
             <span className="selection-count">
-              ({selectedModels.length} selected, min {MIN_MODELS}, max {maxModels})
+              （已选 {selectedModels.length}，最少 {MIN_MODELS}，最多 {maxModels}）
             </span>
           </h3>
 
           {isLoadingModels ? (
             <div className="loading-state">
               <div className="spinner"></div>
-              <p>Loading models...</p>
+              <p>加载模型中...</p>
             </div>
           ) : loadError ? (
             <div className="error-state">
-              <p>Failed to load models: {loadError}</p>
-              <button onClick={loadModels}>Retry</button>
+              <p>加载模型失败: {loadError}</p>
+              <button onClick={loadModels}>重试</button>
             </div>
           ) : (
             <div className="models-grid" ref={modelsGridRef}>
@@ -943,17 +949,17 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                 const isDisabled = !isSelected && isMaxReached;
                 const canChairman = canBeChairman(model);
                 const chairmanTitle = isChairman
-                  ? 'Current Chairman'
+                  ? '当前主席'
                   : canChairman
-                    ? 'Set as Chairman'
-                    : `Context too small (${model.context}). Chairman requires 25K+ context`;
+                    ? '设为主席'
+                    : `上下文过小（${model.context}），主席需 ≥25K`;
                 return (
                   <div
                     key={model.id}
                     ref={(el) => (modelCardRefs.current[model.id] = el)}
                     className={`model-card ${isSelected ? 'selected' : ''} ${isChairman ? 'is-chairman' : ''} ${model.tier} ${isDisabled ? 'disabled' : ''}`}
                     onClick={() => !isDisabled && toggleModel(model.id)}
-                    title={isDisabled ? `Maximum ${maxModels} models reached` : model.description}
+                    title={isDisabled ? `已达到最大 ${maxModels} 个模型` : model.description}
                   >
                     <div className="model-checkbox">
                       {isSelected && (
@@ -971,8 +977,8 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                         <span className="spec output">{model.outputPrice} out</span>
                       </div>
                     </div>
-                    {model.isFree && <span className="free-badge">FREE</span>}
-                    {model.supportsImages && <span className="vision-badge" title="Supports images">V</span>}
+                    {model.isFree && <span className="free-badge">免费</span>}
+                    {model.supportsImages && <span className="vision-badge" title="支持图片">V</span>}
                     <button
                       className={`chairman-btn ${isChairman ? 'active' : ''} ${!canChairman ? 'disabled' : ''}`}
                       onClick={(e) => canChairman && handleChairmanChange(model.id, e)}
@@ -996,11 +1002,11 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
               <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
             </svg>
-            Chairman (Judge)
+            主席（评审）
           </h3>
           <p className="chairman-hint">
-            Click the <span className="star-icon-inline">★</span> star on any model card above to set as Chairman.
-            The Chairman synthesizes the final answer from all council responses.
+            点击上方任意模型卡片上的 <span className="star-icon-inline">★</span> 设为主席。
+            主席会综合所有模型的回答生成最终结果。
           </p>
           {chairmanModelObject ? (
             <div className="chairman-display">
@@ -1021,7 +1027,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                 <button
                   className="chairman-scroll-btn"
                   onClick={() => scrollToModel(chairmanModel)}
-                  title="Scroll to this model"
+                  title="定位到该模型"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" />
@@ -1031,7 +1037,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                 <button
                   className="chairman-clear-btn"
                   onClick={() => setChairmanModel('')}
-                  title="Clear chairman"
+                  title="清除主席"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18" />
@@ -1047,8 +1053,8 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                   <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
                 </svg>
               </div>
-              <p>No chairman selected</p>
-              <span>Click the star icon on any model card to select</span>
+              <p>未选择主席</p>
+              <span>点击任意模型卡片上的星标进行选择</span>
             </div>
           )}
         </div>
@@ -1056,12 +1062,12 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
         {/* Footer */}
         <div className="modal-footer">
           <button className="cancel-button" onClick={onClose}>
-            Cancel
+            取消
           </button>
           <button className="confirm-button" onClick={handleConfirm} disabled={!isValid}>
             {isValid
-              ? `Create Council (${selectedModels.length} models)`
-              : `Select at least ${MIN_MODELS} models and a Chairman`}
+              ? `创建委员会（${selectedModels.length} 个模型）`
+              : `请至少选择 ${MIN_MODELS} 个模型并指定主席`}
           </button>
         </div>
       </div>

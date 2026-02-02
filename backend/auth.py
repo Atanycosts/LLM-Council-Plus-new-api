@@ -37,8 +37,8 @@ def validate_jwt_config():
     """
     if AUTH_ENABLED and not JWT_SECRET:
         raise ValueError(
-            "JWT_SECRET environment variable must be set when AUTH_ENABLED=true. "
-            "Generate a secure secret with: openssl rand -base64 32"
+            "当 AUTH_ENABLED=true 时必须设置 JWT_SECRET。"
+            "可使用命令生成安全密钥：openssl rand -base64 32"
         )
 
 # User store - initialized from environment variable
@@ -59,7 +59,7 @@ def _init_users_from_env():
         return
 
     if bcrypt is None:
-        logger.error("AUTH_ENABLED=true but bcrypt is not installed. Install bcrypt to enable authentication.")
+        logger.error("AUTH_ENABLED=true 但未安装 bcrypt。请安装 bcrypt 以启用认证。")
         return
 
     auth_users_json = os.getenv("AUTH_USERS", "{}")
@@ -68,12 +68,12 @@ def _init_users_from_env():
         users_config = json.loads(auth_users_json)
 
         if not isinstance(users_config, dict):
-            logger.error("AUTH_USERS must be a JSON object")
+            logger.error("AUTH_USERS 必须是 JSON 对象")
             return
 
         for username, password in users_config.items():
             if not username or not password:
-                logger.warning(f"Skipping invalid user entry: {username}")
+                logger.warning(f"跳过无效用户配置: {username}")
                 continue
 
             USERS[username] = {
@@ -84,12 +84,12 @@ def _init_users_from_env():
             }
 
         if USERS:
-            logger.info(f"Loaded {len(USERS)} users from AUTH_USERS")
+            logger.info(f"已从 AUTH_USERS 加载 {len(USERS)} 个用户")
         else:
-            logger.warning("No users configured. Set AUTH_USERS environment variable.")
+            logger.warning("未配置用户。请设置 AUTH_USERS 环境变量。")
 
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse AUTH_USERS: {e}")
+        logger.error(f"解析 AUTH_USERS 失败: {e}")
 
 
 # Initialize users on module load
@@ -129,7 +129,7 @@ def hash_password(password: str) -> str:
         Hashed password string
     """
     if bcrypt is None:
-        raise RuntimeError("bcrypt is required for password hashing; install bcrypt to enable authentication.")
+        raise RuntimeError("密码哈希需要 bcrypt；请安装 bcrypt 以启用认证。")
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
@@ -166,9 +166,9 @@ def create_token(username: str) -> tuple[str, int]:
         ValueError: If JWT_SECRET is not configured
     """
     if jwt is None:
-        raise RuntimeError("PyJWT is required for token creation; install PyJWT to enable authentication.")
+        raise RuntimeError("生成 Token 需要 PyJWT；请安装 PyJWT 以启用认证。")
     if not JWT_SECRET:
-        raise ValueError("JWT_SECRET environment variable must be set")
+        raise ValueError("必须设置 JWT_SECRET 环境变量")
 
     now = datetime.now(timezone.utc)
     expires = now + timedelta(days=TOKEN_EXPIRE_DAYS)
@@ -196,10 +196,10 @@ def validate_token(token: str) -> Optional[str]:
         Username if token is valid, None otherwise
     """
     if jwt is None:
-        logger.error("PyJWT not installed - authentication disabled")
+        logger.error("未安装 PyJWT，认证功能不可用")
         return None
     if not JWT_SECRET:
-        logger.error("JWT_SECRET not configured")
+        logger.error("JWT_SECRET 未配置")
         return None
 
     try:
@@ -214,12 +214,12 @@ def validate_token(token: str) -> Optional[str]:
         expired = getattr(jwt, "ExpiredSignatureError", None)
         invalid = getattr(jwt, "InvalidTokenError", None)
         if expired and isinstance(e, expired):
-            logger.debug("Token expired")
+            logger.debug("Token 已过期")
             return None
         if invalid and isinstance(e, invalid):
-            logger.debug(f"Invalid token: {e}")
+            logger.debug(f"无效 Token: {e}")
             return None
-        logger.debug(f"Token validation error: {e}")
+        logger.debug(f"Token 校验异常: {e}")
         return None
 
 
@@ -237,20 +237,20 @@ def authenticate(username: str, password: str) -> LoginResponse:
     if not AUTH_ENABLED:
         return LoginResponse(
             success=False,
-            error="Authentication is disabled"
+            error="认证未启用"
         )
 
     if not username or not password:
         return LoginResponse(
             success=False,
-            error="Username and password are required"
+            error="用户名与密码不能为空"
         )
 
     if not JWT_SECRET:
-        logger.error("JWT_SECRET not configured - authentication disabled")
+        logger.error("JWT_SECRET 未配置，认证功能不可用")
         return LoginResponse(
             success=False,
-            error="Authentication system not configured"
+            error="认证系统未配置"
         )
 
     user = USERS.get(username)
@@ -258,25 +258,25 @@ def authenticate(username: str, password: str) -> LoginResponse:
     if not user:
         return LoginResponse(
             success=False,
-            error="Invalid username or password"
+            error="用户名或密码错误"
         )
 
     if not verify_password(password, user["password_hash"]):
         return LoginResponse(
             success=False,
-            error="Invalid username or password"
+            error="用户名或密码错误"
         )
 
     try:
         token, expires_at = create_token(username)
     except ValueError as e:
-        logger.error(f"Token creation failed: {e}")
+        logger.error(f"生成 Token 失败: {e}")
         return LoginResponse(
             success=False,
-            error="Authentication system error"
+            error="认证系统异常"
         )
 
-    logger.info(f"User logged in: {username}")
+    logger.info(f"用户登录: {username}")
 
     return LoginResponse(
         success=True,
@@ -314,7 +314,7 @@ def reload_auth():
     USERS.clear()
     _init_users_from_env()
 
-    logger.info(f"Auth reloaded: AUTH_ENABLED={AUTH_ENABLED}, users={len(USERS)}")
+    logger.info(f"认证已重载: AUTH_ENABLED={AUTH_ENABLED}, users={len(USERS)}")
 
 
 def validate_auth_token(token: str) -> ValidateResponse:
@@ -330,7 +330,7 @@ def validate_auth_token(token: str) -> ValidateResponse:
     if not token:
         return ValidateResponse(
             success=False,
-            error="Token is required"
+            error="必须提供 Token"
         )
 
     username = validate_token(token)
@@ -338,7 +338,7 @@ def validate_auth_token(token: str) -> ValidateResponse:
     if not username:
         return ValidateResponse(
             success=False,
-            error="Invalid or expired token"
+            error="Token 无效或已过期"
         )
 
     return ValidateResponse(

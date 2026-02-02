@@ -148,8 +148,8 @@
 }
 
 .aggregate-rankings h4::before {
-  content: '🏆';
-  font-size: 20px;
+  content: '榜';
+  font-size: 16px;
 }
 
 .aggregate-list {
@@ -321,8 +321,8 @@
 }
 
 .parsed-ranking strong::before {
-  content: '📊';
-  font-size: 16px;
+  content: '析';
+  font-size: 14px;
 }
 
 .parsed-ranking ol {
