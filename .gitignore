@@ -48,6 +48,9 @@ ssl/
 # History
 .history
 
+# Local knowledge base (do not commit)
+Atanycosts/
+
 # Claude Code settings
 .claude/
 
